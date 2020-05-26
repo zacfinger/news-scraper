@@ -4,6 +4,9 @@
 const siteUrl = "https://www.alexa.com/topsites/category/Top/News";
 const axios = require("axios");
 const cheerio = require("cheerio");
+const fs = require('fs');
+
+let sites = [];
 
 const fetchData = async () => {
   const result = await axios.get(siteUrl);
@@ -13,8 +16,15 @@ const fetchData = async () => {
 const getResults = async () => {
     const $ = await fetchData();
     $(".DescriptionCell").each((index, element) => {
-        console.log("Site: " + $(element).text());
+        sites.push($(element).text().trim())
+        
     });
+
+    return sites;
 };
 
-getResults();
+(async () => {
+    let results = await getResults()
+    let jsonString = JSON.stringify(results);
+    fs.writeFileSync('output.json', jsonString, 'utf-8');
+})()
