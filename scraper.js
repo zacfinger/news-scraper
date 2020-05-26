@@ -16,7 +16,7 @@ const fetchData = async () => {
 const getResults = async () => {
     const $ = await fetchData();
     $(".DescriptionCell").each((index, element) => {
-        sites.push($(element).text().trim())
+        sites.push($(element).text().trim().toLowerCase())
         
     });
 
@@ -26,5 +26,5 @@ const getResults = async () => {
 (async () => {
     let results = await getResults()
     let jsonString = JSON.stringify(results);
-    fs.writeFileSync('output.json', jsonString, 'utf-8');
+    fs.writeFileSync('sites.json', jsonString, 'utf-8');
 })()
