@@ -10,10 +10,11 @@ const fetchData = async () => {
   return cheerio.load(result.data);
 };
 
-const start = async function() {
+const getResults = async () => {
     const $ = await fetchData();
-    const postJobButton = $('.DescriptionCell').text();
-    console.log(postJobButton) // Logs 'Post a Job'
-}
+    $(".DescriptionCell").each((index, element) => {
+        console.log("Site: " + $(element).text());
+    });
+};
 
-start();
+getResults();

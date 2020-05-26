@@ -6,18 +6,21 @@
   "scripts": {
     "test": "node index.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zacfinger/news-scraper.git"
+  },
   "keywords": [
     "generative",
     "content",
-    "news",
     "automation",
     "fake",
-    "news",
-    "detection"
+    "news"
   ],
   "author": "zacfinger.com",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.19.2"
+    "axios": "^0.19.2",
+    "cheerio": "^1.0.0-rc.3"
   }
 }
