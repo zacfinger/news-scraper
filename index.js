@@ -3,9 +3,8 @@ const axios = require('axios');
 
 // Get sites
 // https://stackabuse.com/reading-and-writing-json-files-with-node-js/
-/*let rawdata = fs.readFileSync('sites.json');
-let student = JSON.parse(rawdata);
-console.log(sites);*/
+let rawdata = fs.readFileSync('sites.json');
+let sites = JSON.parse(rawdata);
 
 function getDomain(url){
   
@@ -24,8 +23,11 @@ function getDomain(url){
     url = url.substring(0, n);
   }
 
-  console.log(url);
-    
+  if(sites.includes(url)){
+    //console.log(url);
+    return true;
+  }
+  return false;
 }
 
 (async () => {
@@ -40,7 +42,9 @@ function getDomain(url){
                 //console.log(story.data.url);
                 //console.log(story.data.title);
                 if (story.data.url != undefined){
-                    getDomain(story.data.url);
+                    if(getDomain(story.data.url)){
+                      console.log(story.data.title);
+                    }
                 }
                 
             }
