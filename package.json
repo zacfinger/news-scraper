@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "0.5.2",
+  "version": "0.6.14",
   "description": "Scrapes top news sites",
   "main": "index.js",
   "scripts": {
@@ -21,6 +21,7 @@
   "license": "MIT",
   "dependencies": {
     "axios": "^0.19.2",
-    "cheerio": "^1.0.0-rc.3"
+    "cheerio": "^1.0.0-rc.3",
+    "firebase-admin": "^8.12.1"
   }
 }
