@@ -56,13 +56,15 @@ function getDomain(url){
                 if (story.data.url != undefined){
                     if(getDomain(story.data.url)){
                       
-                      let docRef = db.collection('links').doc();
+                      let docRef = db.collection('links').doc(story.data.id.toString());
 
                       let setAda = docRef.set({
                         title: story.data.title,
-                        url: story.data.url
+                        url: story.data.url,
+                        id: story.data.id,
+                        time: story.data.time
                       });
-
+                      console.log(story.data.id);
                       console.log(story.data.title);
                     }
                 }
