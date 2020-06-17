@@ -5,7 +5,7 @@ let parser = new Parser();
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
  
-(async () => {
+const getHeadlines = async () => {
  
   let feed = await parser.parseURL('https://news.google.com/rss');
   //let feed = await parser.parseURL('https://news.google.com/rss/search?q=coronavirus');
@@ -21,13 +21,18 @@ const { JSDOM } = jsdom;
 
     for (var i = 0; i < links.length; i++){
         var title = links[i].textContent;
-        headlines.push(links[i].textContent);
+        if(!title.includes("View Full Coverage")){
+            headlines.push(links[i].textContent);
+        }
+    
     }
 
     stories.push(headlines);
   
   });
 
-  console.log(stories);
+  return stories;
  
-})();
+};
+
+const 
