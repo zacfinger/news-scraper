@@ -1,9 +1,9 @@
-const newsScraperCredentials = require('./news-scraper-credentials');
+const config = require('./config');
 const fs = require('fs');
 const axios = require('axios');
 const admin = require('firebase-admin');
 
-let serviceAccount = require(newsScraperCredentials.jsonPath);
+let serviceAccount = require(config.jsonPath);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
@@ -58,7 +58,7 @@ function getDomain(url){
                       
                       let docRef = db.collection('links').doc(story.data.id.toString());
 
-                      let setAda = docRef.set({
+                      let setStory = docRef.set({
                         title: story.data.title,
                         url: story.data.url,
                         id: story.data.id,

@@ -1,4 +1,4 @@
-news-scraper-credentials.js
+config.js
 node_modules
 output.json
 sites.json
