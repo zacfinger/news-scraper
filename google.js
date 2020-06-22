@@ -1,5 +1,7 @@
 // https://stackoverflow.com/questions/7806200/what-to-use-now-google-news-api-is-deprecated
 
+const config = require('./config');
+const axios = require('axios');
 let Parser = require('rss-parser');
 let parser = new Parser();
 const jsdom = require("jsdom");
@@ -18,17 +20,27 @@ const getHeadlines = async (url) => {
     var dom = new JSDOM(item.content);
     
     var links = dom.window.document.querySelectorAll('a');
-    
-    var headlines = [];
 
-    for (var i = 0; i < links.length; i++){
-        var title = links[i].textContent;
-        if(!title.includes("View Full Coverage")){
-            headlines.push(links[i].textContent);
+    // Only process story if 
+    // there is more than one headline
+    // from which to generate headline
+    // >2 because "View Full Coverage" link is always included
+    if(links.length > 2){
+
+        var headlines = [];
+
+        for (var i = 0; i < links.length; i++){
+            var title = links[i].textContent;
+            if(!title.includes("View Full Coverage")){
+                headlines.push(links[i].textContent);
+            }
         }
-    }
 
-    stories.push(headlines);
+        var url = item.link;
+        headlines.push(url);
+
+        stories.push(headlines);
+    }
   
   });
 
@@ -46,7 +58,7 @@ const getMostCommonWords = (story) => {
 
         headline.split(" ").map((word) => {
             if(!(word in words)){
-                // TOOD: Need to account for caps/lowercase
+                // TODO: Need to account for caps/lowercase
                 // TODO: Need to account for possessive, i.e. "Trump's"
                 words[""+word] = 1;
             }
@@ -118,6 +130,25 @@ const createWordBank = (story) => {
     return wordBank;
 }
 
+const getImage = async (story) => {
+    
+    let words = getMostCommonWords(story);
+
+    //console.log(words);
+
+    // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
+    let wordsSorted = Object.keys(words).sort(function(a,b){return words[b]-words[a]})
+
+    //var url = await unsplash.getImage(wordsSorted[0], wordsSorted[1]);
+    var q1 = wordsSorted[0];
+    var q2 = wordsSorted[1];
+
+    const response = await axios.get('https://api.unsplash.com/search/photos?client_id='+config.client_id+'&query='+q1+'+'+q2);
+    
+    return response.data.results[0].urls.regular;
+
+}
+
 (async() => {
 
     var url = 'https://news.google.com/rss'
@@ -127,27 +158,36 @@ const createWordBank = (story) => {
     
     stories.forEach((story) => {
 
-        let firstWord = getBestHeadline(story).split(" ")[0];
-        let bank = createWordBank(story);
+        (async() => {
 
-        let currentWord = firstWord;
-        let headline = "";
-        let wordCount = 0;
+            let href = story.pop();
+            
+            let firstWord = getBestHeadline(story).split(" ")[0];
+            let bank = createWordBank(story);
+            let img = await getImage(story);
 
-        while(bank[currentWord].length > 0){
+            let currentWord = firstWord;
+            let headline = "";
+            let wordCount = 0;
 
-            headline += currentWord + " ";
-            wordCount += 1;
-            currentWord = bank[currentWord][Math.floor(Math.random() * bank[currentWord].length)];
+            while(bank[currentWord].length > 0){
 
-            // https://www.google.com/search?client=ubuntu&channel=fs&q=average+headline+length&ie=utf-8&oe=utf-8
-            if(wordCount > 17){
-                break;
+                headline += currentWord + " ";
+                wordCount += 1;
+                currentWord = bank[currentWord][Math.floor(Math.random() * bank[currentWord].length)];
+
+                // https://www.google.com/search?client=ubuntu&channel=fs&q=average+headline+length&ie=utf-8&oe=utf-8
+                if(wordCount > 17){
+                    break;
+                }
             }
-        }
 
-        headline += currentWord;
-        console.log(headline);
-        console.log("--------------------------------");
+            headline += currentWord;
+            console.log(headline);
+            console.log(href);
+            console.log(img)
+            console.log("--------------------------------");
+        })();
     });
+    console.log(stories.length);
 })();
