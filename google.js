@@ -14,7 +14,7 @@ const getHeadlines = async (url) => {
   let stories = [];
  
   feed.items.forEach(item => {
-    
+
     var dom = new JSDOM(item.content);
     
     var links = dom.window.document.querySelectorAll('a');
@@ -46,6 +46,8 @@ const getMostCommonWords = (story) => {
 
         headline.split(" ").map((word) => {
             if(!(word in words)){
+                // TOOD: Need to account for caps/lowercase
+                // TODO: Need to account for possessive, i.e. "Trump's"
                 words[""+word] = 1;
             }
             else{
@@ -57,10 +59,14 @@ const getMostCommonWords = (story) => {
     return words;
 }
 
+// Receives array of headlines as strings
+// Returns "best" headline based on which headline 
+// has the most amount of "high value" words
+// as determined by word frequency
 const getBestHeadline = (story) => {
 
     let words = getMostCommonWords(story);
-
+    
     let rankings = {};
 
     story.forEach((headline) => {
@@ -79,7 +85,37 @@ const getBestHeadline = (story) => {
     // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
     let keysSorted = Object.keys(rankings).sort(function(a,b){return rankings[b]-rankings[a]})
 
-    console.log(keysSorted[0]);
+    return keysSorted[0];
+}
+
+// Receives array of headlines as strings
+// Returns dictionary with each word in the headlines as a key
+// Value is an array containing each word that followed the key
+// Duplicates are allowed in the array
+// More common words will appear more than once
+const createWordBank = (story) => {
+
+    let wordBank = {}
+
+    story.forEach((headline) => {
+        
+        var prev_word = null;
+
+        headline.split(" ").map((word) => {
+            
+            if(prev_word != null){
+                wordBank[prev_word].push(word);
+            }
+
+            if(!(word in wordBank)){
+                wordBank[word] = [];
+            }
+            
+            prev_word = word;
+        });
+    });
+
+    return wordBank;
 }
 
 (async() => {
@@ -91,7 +127,27 @@ const getBestHeadline = (story) => {
     
     stories.forEach((story) => {
 
-        getBestHeadline(story);
-        
+        let firstWord = getBestHeadline(story).split(" ")[0];
+        let bank = createWordBank(story);
+
+        let currentWord = firstWord;
+        let headline = "";
+        let wordCount = 0;
+
+        while(bank[currentWord].length > 0){
+
+            headline += currentWord + " ";
+            wordCount += 1;
+            currentWord = bank[currentWord][Math.floor(Math.random() * bank[currentWord].length)];
+
+            // https://www.google.com/search?client=ubuntu&channel=fs&q=average+headline+length&ie=utf-8&oe=utf-8
+            if(wordCount > 17){
+                break;
+            }
+        }
+
+        headline += currentWord;
+        console.log(headline);
+        console.log("--------------------------------");
     });
 })();
