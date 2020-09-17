@@ -6,6 +6,15 @@ let Parser = require('rss-parser');
 let parser = new Parser();
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
+const admin = require('firebase-admin');
+
+let serviceAccount = require(config.jsonPath);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+let db = admin.firestore();
  
 // Reads Google News RSS
 // Returns list of stories
@@ -24,8 +33,8 @@ const getHeadlines = async (url) => {
     // Only process story if 
     // there is more than one headline
     // from which to generate headline
-    // >2 because "View Full Coverage" link is always included
-    if(links.length > 2){
+    // TODO: Test >2 because "View Full Coverage" link is sometimes included
+    if(links.length > 1){
 
         var headlines = [];
 
@@ -134,8 +143,6 @@ const getImage = async (story) => {
     
     let words = getMostCommonWords(story);
 
-    //console.log(words);
-
     // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
     let wordsSorted = Object.keys(words).sort(function(a,b){return words[b]-words[a]})
 
@@ -145,7 +152,7 @@ const getImage = async (story) => {
 
     const response = await axios.get('https://api.unsplash.com/search/photos?client_id='+config.client_id+'&query='+q1+'+'+q2);
     
-    return response.data.results[0].urls.regular;
+    return response.data.results[0].urls.small;
 
 }
 
@@ -165,6 +172,7 @@ const getImage = async (story) => {
             let firstWord = getBestHeadline(story).split(" ")[0];
             let bank = createWordBank(story);
             let img = await getImage(story);
+            //let img = "";
 
             let currentWord = firstWord;
             let headline = "";
@@ -183,9 +191,18 @@ const getImage = async (story) => {
             }
 
             headline += currentWord;
+
+            // Save to firestore
+
+            let docRef = db.collection('links').doc();
+
+            let setStory = docRef.set({
+                title: headline,
+                url: href,
+                img: img
+            });
+
             console.log(headline);
-            console.log(href);
-            console.log(img)
             console.log("--------------------------------");
         })();
     });
