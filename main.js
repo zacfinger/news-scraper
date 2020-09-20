@@ -20,11 +20,43 @@ admin.initializeApp({
 
 let db = admin.firestore();
 
-(async() => {
-    // https://stackoverflow.com/questions/59081736/synchronously-iterate-through-firestore-collection
-    const links = await db.collection("links").get();
+const getURLofOldestStory = async () => {
     
+    // Pull all links in the collection
+    // https://stackoverflow.com/questions/59081736/synchronously-iterate-through-firestore-collection
+    // https://stackoverflow.com/questions/53524187/query-firestore-database-on-timestamp-field
+    const links = await db.collection("linksToProcess").get();
+
+    var oldestDate = new Date();
+    var oldestIndex = -1
+    var id = -1
+    var url = ""
+    
+    // Iterate through list and find index of document with oldest time stamp
     for(let index = 0; index < links.docs.length; index++){
-        console.log(links.docs[index].data().title);
+        
+        var pubDate = links.docs[index].data().time;
+        
+        if(pubDate < oldestDate){
+            
+            oldestIndex = index;
+            oldestDate = pubDate;
+            id = links.docs[index].id;
+        }
+        
     }
+
+    if(oldestIndex >= 0){
+        url = links.docs[oldestIndex].data().url;
+    }
+
+    return url;
+}
+
+(async() => {
+    
+    var url = await getURLofOldestStory();
+
+    console.log(url);
+
 })();
