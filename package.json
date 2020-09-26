@@ -2,9 +2,9 @@
   "name": "news-scraper",
   "version": "0.6.16",
   "description": "Scrapes top news sites",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
-    "test": "node index.js"
+    "test": "node main.js"
   },
   "repository": {
     "type": "git",
@@ -25,6 +25,8 @@
     "firebase-admin": "^8.12.1",
     "jsdom": "^16.2.2",
     "node-fetch": "^2.6.1",
-    "rss-parser": "^3.8.0"
+    "pos": "^0.4.2",
+    "rss-parser": "^3.8.0",
+    "thesaurus": "0.0.1"
   }
 }

@@ -10,6 +10,8 @@
 const fetch = require("node-fetch");
 const config = require('./config');
 const admin = require('firebase-admin');
+var pos = require('pos');
+var thesaurus = require("thesaurus");
 
 let serviceAccount = require(config.jsonPath);
 
@@ -19,40 +21,53 @@ admin.initializeApp({
 
 let db = admin.firestore();
 
+var id = -1
+
 const getURLofOldestStory = async () => {
 
-    // Pull all links in the collection
-    // https://stackoverflow.com/questions/59081736/synchronously-iterate-through-firestore-collection
-    // https://stackoverflow.com/questions/53524187/query-firestore-database-on-timestamp-field
-    const links = await db.collection("linksToProcess").get();
-
-    var oldestDate = new Date();
-    var oldestIndex = -1
-    var id = -1
     var url = ""
-    
-    // Iterate through list and find index of document with oldest time stamp
-    for(let index = 0; index < links.docs.length; index++){
+
+    try {
+
+        // Pull all links in the collection
+        // https://stackoverflow.com/questions/59081736/synchronously-iterate-through-firestore-collection
+        // https://stackoverflow.com/questions/53524187/query-firestore-database-on-timestamp-field
+        const links = await db.collection("linksToProcess").get();
+
+        var oldestDate = new Date();
+        var oldestIndex = -1
         
-        var pubDate = links.docs[index].data().time;
-        
-        if(pubDate < oldestDate){
+        // Iterate through list and find index of document with oldest time stamp
+        for(let index = 0; index < links.docs.length; index++){
             
-            oldestIndex = index;
-            oldestDate = pubDate;
-            id = links.docs[index].id;
+            var pubDate = links.docs[index].data().time;
+            
+            if(pubDate < oldestDate){
+                
+                oldestIndex = index;
+                oldestDate = pubDate;
+                id = links.docs[index].id;
+            }
+            
         }
-        
+
+        if(oldestIndex >= 0){
+            url = links.docs[oldestIndex].data().url;
+
+            // Delete document reference
+            // https://stackoverflow.com/questions/47180076/how-to-delete-document-from-firestore-using-where-clause
+            links.docs[oldestIndex].ref.delete();
+        }
+
+    } catch (error) {
+        console.log(error);
+        //throw error;
     }
 
-    if(oldestIndex >= 0){
-        url = links.docs[oldestIndex].data().url;
-    }
-
-    return url;
+   return url;
 }
 
-const summarify = async (url) => {
+const getSummary = async (url) => {
     try {
         const response = await fetch(("http://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
         + "&SM_LENGTH=40" + "&SM_URL=" + url), {
@@ -62,33 +77,75 @@ const summarify = async (url) => {
             }
         })
 
+        // TODO: replace all double quotes with single quotes 
         const json = await response.json();
+        console.log(json);
         return json.sm_api_content;
 
 
     } catch (error) {
         console.log(error);
-        throw error;
+        //throw error;
     }
+
+    return ""
+}
+
+const thesaurusize = (sourceText) => {
+
+    var newSummary = ""
+    var words = sourceText.split(" ");
+    var tagger = new pos.Tagger();
+    var newWords = [];
+    var newWord = undefined;
+
+    // Iterate through summary word for word
+    for (i in words){
+        
+        newWord = undefined;
+        
+        // Identify POS of word
+        var tag = tagger.tag([words[i]]);
+        
+        // If the word is any kind of ADVERB or ADJECTIVE
+        if(tag[0][1] == "RB" || tag[0][1] == "JJ" ||
+           tag[0][1] == "JJR" || tag[0][1] == "JJS" ||
+           tag[0][1] == "RBR" || tag[0][1] == "RBS"){
+            
+            newWords = thesaurus.find(words[i])
+
+            newWord = newWords[Math.floor(Math.random() * newWords.length)];
+        }
+        // TODO: protect against newWord.length == 0
+        if(newWord == undefined){
+            newSummary += words[i];
+        }
+        else {
+            newSummary += newWord;
+        }
+
+        newSummary += " ";
+    }
+
+    return newSummary;
 }
 
 (async() => {
     
-    var url = await getURLofOldestStory();
-    
+    var url = "";
     var summary = ""
 
+    // Find oldest non-processed story and remove from database
+    url = await getURLofOldestStory();
+    
     if(url.length > 0){
-        summary = await summarify(url);
-        console.log(summary);
+        summary = await getSummary(url);
+    }
+
+    if(summary.length > 0){
+        summary = thesaurusize(summary);
     }
     
-    /*var story = {
-        title: "",
-        body: "",
-        time: new Date()
-    }*/
-
-    
+    console.log(summary);
 
 })();
