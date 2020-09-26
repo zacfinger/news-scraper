@@ -7,9 +7,8 @@
 // // swap out ordering of clauses
 // // post in DB
 // // delete link
-
+const fetch = require("node-fetch");
 const config = require('./config');
-
 const admin = require('firebase-admin');
 
 let serviceAccount = require(config.jsonPath);
@@ -21,7 +20,7 @@ admin.initializeApp({
 let db = admin.firestore();
 
 const getURLofOldestStory = async () => {
-    
+
     // Pull all links in the collection
     // https://stackoverflow.com/questions/59081736/synchronously-iterate-through-firestore-collection
     // https://stackoverflow.com/questions/53524187/query-firestore-database-on-timestamp-field
@@ -53,10 +52,43 @@ const getURLofOldestStory = async () => {
     return url;
 }
 
+const summarify = async (url) => {
+    try {
+        const response = await fetch(("http://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
+        + "&SM_LENGTH=40" + "&SM_URL=" + url), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+
+        const json = await response.json();
+        return json.sm_api_content;
+
+
+    } catch (error) {
+        console.log(error);
+        throw error;
+    }
+}
+
 (async() => {
     
     var url = await getURLofOldestStory();
+    
+    var summary = ""
 
-    console.log(url);
+    if(url.length > 0){
+        summary = await summarify(url);
+        console.log(summary);
+    }
+    
+    /*var story = {
+        title: "",
+        body: "",
+        time: new Date()
+    }*/
+
+    
 
 })();
