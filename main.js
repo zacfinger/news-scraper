@@ -22,10 +22,11 @@ admin.initializeApp({
 let db = admin.firestore();
 
 var id = -1
+var url = ""
 
 const getURLofOldestStory = async () => {
 
-    var url = ""
+    var oldestURL = ""
 
     try {
 
@@ -52,11 +53,13 @@ const getURLofOldestStory = async () => {
         }
 
         if(oldestIndex >= 0){
-            url = links.docs[oldestIndex].data().url;
-
+            
+            oldestURL = links.docs[oldestIndex].data().url;
+            
             // Delete document reference
             // https://stackoverflow.com/questions/47180076/how-to-delete-document-from-firestore-using-where-clause
             links.docs[oldestIndex].ref.delete();
+
         }
 
     } catch (error) {
@@ -64,13 +67,13 @@ const getURLofOldestStory = async () => {
         //throw error;
     }
 
-   return url;
+    return oldestURL;
 }
 
 const getSummary = async (url) => {
     try {
         const response = await fetch(("http://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
-        + "&SM_LENGTH=40" + "&SM_URL=" + url), {
+        + "&SM_WITH_BREAK=true" + "&SM_LENGTH=40" + "&SM_URL=" + url), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -80,9 +83,11 @@ const getSummary = async (url) => {
         // TODO: replace all double quotes with single quotes 
         const json = await response.json();
         console.log(json);
-        return json.sm_api_content;
 
-
+        if(!("sm_api_error" in json)){
+            return json.sm_api_content;
+        }
+ 
     } catch (error) {
         console.log(error);
         //throw error;
@@ -93,37 +98,49 @@ const getSummary = async (url) => {
 
 const thesaurusize = (sourceText) => {
 
+    // TODO: Include credit at end of first sentence
+    // For example "According to <domain.com>, <first_sentence>"
+    // "<first_sentence>, according to a new report from <domain.com> on <day_of_week>"
+
     var newSummary = ""
     var words = sourceText.split(" ");
     var tagger = new pos.Tagger();
     var newWords = [];
     var newWord = undefined;
+    var sourceCited = false;
 
     // Iterate through summary word for word
     for (i in words){
-        
-        newWord = undefined;
-        
-        // Identify POS of word
-        var tag = tagger.tag([words[i]]);
-        
-        // If the word is any kind of ADVERB or ADJECTIVE
-        if(tag[0][1] == "RB" || tag[0][1] == "JJ" ||
-           tag[0][1] == "JJR" || tag[0][1] == "JJS" ||
-           tag[0][1] == "RBR" || tag[0][1] == "RBS"){
-            
-            newWords = thesaurus.find(words[i])
 
-            newWord = newWords[Math.floor(Math.random() * newWords.length)];
-        }
-        // TODO: protect against newWord.length == 0
-        if(newWord == undefined){
-            newSummary += words[i];
+        if(sourceCited == false && words[i].includes("[BREAK]")){
+            newSummary += words[i] + " According to a report by " + url + ",";
+            sourceCited = true;
         }
         else {
-            newSummary += newWord;
+            newWord = undefined;
+        
+            // Identify POS of word
+            var tag = tagger.tag([words[i]]);
+            
+            // If the word is any kind of ADVERB or ADJECTIVE
+            // TODO: Possibly use https://www.npmjs.com/package/thesaurus-com instead
+            if(tag[0][1] == "RB" || tag[0][1] == "JJ" ||
+               tag[0][1] == "JJR" || tag[0][1] == "JJS" ||
+               tag[0][1] == "RBR" || tag[0][1] == "RBS"){
+                
+                newWords = thesaurus.find(words[i])
+    
+                newWord = newWords[Math.floor(Math.random() * newWords.length)];
+            }
+            // Protect against no words found
+            if(newWord == undefined){
+                newSummary += words[i];
+            }
+            else {
+                newSummary += newWord;
+            }
         }
-
+        
         newSummary += " ";
     }
 
@@ -132,7 +149,6 @@ const thesaurusize = (sourceText) => {
 
 (async() => {
     
-    var url = "";
     var summary = ""
 
     // Find oldest non-processed story and remove from database
