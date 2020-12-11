@@ -2,12 +2,17 @@ const config = require('./config');
 const fs = require('fs');
 const axios = require('axios');
 const admin = require('firebase-admin');
+const app = require('./app');
 
 let serviceAccount = require(config.jsonPath);
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+// Check if app already initialized
+// https://stackoverflow.com/questions/57763991/initializeapp-when-adding-firebase-to-app-and-to-server
+if (!admin.apps.length){
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+}
 
 let db = admin.firestore();
 
@@ -16,31 +21,6 @@ let db = admin.firestore();
 // need to check if JSON file exists and create it if not
 let rawdata = fs.readFileSync('sites.json');
 let sites = JSON.parse(rawdata);
-
-function getDomain(url){
-  
-  var n = url.indexOf("//");
-  
-  if (n != -1){
-    url = url.substring(n + 2);
-    n = url.indexOf("www");
-    if (n != -1){
-      url = url.substring(n + 4);
-    }
-  }
-
-  n = url.indexOf("/");
-  if(n != -1){
-    url = url.substring(0, n);
-  }
-
-  if(sites.includes(url)){
-    //console.log(url);
-    return true;
-  }
-  return false;
-}
-
 
 (async () => {
   try {
@@ -54,7 +34,7 @@ function getDomain(url){
                 //console.log(story.data.url);
                 //console.log(story.data.title);
                 if (story.data.url != undefined){
-                    if(getDomain(story.data.url)){
+                    if(sites.includes(app.getDomain(story.data.url))){
                       
                       let docRef = db.collection('links').doc(story.data.id.toString());
 

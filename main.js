@@ -12,12 +12,17 @@ const config = require('./config');
 const admin = require('firebase-admin');
 var pos = require('pos');
 var thesaurus = require("thesaurus");
+const app = require('./app');
 
 let serviceAccount = require(config.jsonPath);
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-});
+// Check if app already initialized
+// https://stackoverflow.com/questions/57763991/initializeapp-when-adding-firebase-to-app-and-to-server
+if (!admin.apps.length){
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+  }
 
 let db = admin.firestore();
 
@@ -113,7 +118,7 @@ const thesaurusize = (sourceText) => {
     for (i in words){
 
         if(sourceCited == false && words[i].includes("[BREAK]")){
-            newSummary += words[i] + " According to a report by " + url + ",";
+            newSummary += words[i] + " According to a report by " + app.getDomain(url) + ",";
             sourceCited = true;
         }
         else {
