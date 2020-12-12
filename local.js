@@ -1,15 +1,27 @@
+// Pulls news items from Google News RSS feed
+// Stores data in database
+
+// Require dependencies
 let Parser = require('rss-parser');
 let parser = new Parser();
+var mysql = require('./dbcon.js');
 const config = require('./config');
 const admin = require('firebase-admin');
-
 let serviceAccount = require(config.jsonPath);
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+// Boolean config value to use SQL or Firestore
+let useSQL = config.useSQL;
 
-let db = admin.firestore();
+// Get Firestore values if needed
+let db = null;
+if (!useSQL)
+{
+	admin.initializeApp({
+  		credential: admin.credential.cert(serviceAccount)
+	});
+
+	db = admin.firestore();
+}
 
 (async() => {
 
@@ -26,15 +38,37 @@ let db = admin.firestore();
         
         // If the news item was published within last 60 minutes
         if (date >= oneHourAgo) {
-            
-            // TODO: Check if item.link contains word in denylist
-            // Populate to firestore db
-            (async() => {
-                db.collection('linksToProcess').doc(item.guid).set({
-                    url: item.link,
-                    time: date
-                });
-            })();
+		
+		// TODO: Check if item.link contains word in denylist
+		(async() => {
+			if(useSQL)
+			{
+				// TODO: Check guid does not exceed the column limit
+				// TODO: Check guid does not exist
+				mysql.pool.query(
+					'insert into linksToProcess (`guid`, `link`, `pubDate`) values (?, ?, ?)',
+					[item.guid, item.link, date],
+					(err, result) => {
+						if(err)
+						{
+							console.log(err);
+						}
+						else
+						{
+							console.log(result);
+						}
+					}
+				);
+			}
+			else
+			{
+				// Populate to firestore db
+				db.collection('linksToProcess').doc(item.guid).set({
+					url: item.link,
+					time: date
+				});
+			}
+		})();
 
         }
 
