@@ -3,32 +3,32 @@
 
 // Load config settings
 const config = require('./config');
-let useSQL = config.useSQL; // Boolean: use SQL or Firestore for db
 
-// Require RSS dependencies
+// Require RSS dependency
 let Parser = require('rss-parser');
 let parser = new Parser();
 
 // Instantiate dependency objects
 // Later load conditionally based on config
 let mysql = null; // mysql object
-
-// Firestore objects
-let admin = null;
+let admin = null; // Firestore objects
 let serviceAccount = null;
 let db = null;
 
 // Conditionally load dependencies
-if (useSQL) {
+if (config.useSQL) {
     mysql = require('./dbcon.js');
 } else {
+    // Get Firestore values if needed
     admin = require('firebase-admin');
     serviceAccount = require(config.jsonPath);
 
-    // Get Firestore values if needed
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
+    // Check if app already initialized
+    if (!admin.apps.length){
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount)
+        });
+    }
 
     db = admin.firestore();
 }
@@ -37,8 +37,8 @@ if (useSQL) {
 (async() => {
 
     // Get Date.now and subtract one hour
-    let oneHourAgo = new Date();
-    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+    let timeToCheck = new Date();
+    timeToCheck.setMinutes(timeToCheck.getMinutes() - config.minutesAgo);
     
     // Pull local headlines
     let feed = await parser.parseURL('https://news.google.com/rss/search?q=' + config.locale);
@@ -48,11 +48,11 @@ if (useSQL) {
         var date = new Date(item.pubDate);
         
         // If the news item was published within last 60 minutes
-        if (date >= oneHourAgo) {
+        if (date >= timeToCheck) {
 		
             // TODO: Check if item.link contains word in denylist
             (async() => {
-                if(useSQL) {
+                if(config.useSQL) {
                     // TODO: Check guid does not exceed the column limit
                     // TODO: Check guid does not exist
                     mysql.pool.query(
@@ -61,6 +61,7 @@ if (useSQL) {
                         (err, result) => {
                             if(err)
                             {
+                                // TODO: Log in txt file
                                 console.log(err);
                             }
                             else
