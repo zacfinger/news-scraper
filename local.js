@@ -11,13 +11,17 @@ let parser = new Parser();
 // Instantiate dependency objects
 // Later load conditionally based on config
 let mysql = null; // mysql object
-let admin = null; // Firestore objects
+let util = null; // node native promisify
+let query = null; // Object to use promisified mysql connection
+let admin = null; // Firestore objects...
 let serviceAccount = null;
 let db = null;
 
 // Conditionally load dependencies
 if (config.useSQL) {
     mysql = require('./dbcon.js');
+    util = require('util');
+    mysql.conn.query = util.promisify(mysql.conn.query).bind(mysql.conn);
 } else {
     // Get Firestore values if needed
     admin = require('firebase-admin');
@@ -42,7 +46,7 @@ if (config.useSQL) {
     
     // Pull local headlines
     let feed = await parser.parseURL('https://news.google.com/rss/search?q=' + config.locale);
-
+try{
     // TODO: Account for multiple stories in <ol> tag in description
     feed.items.forEach(item => {
         var date = new Date(item.pubDate);
@@ -55,21 +59,16 @@ if (config.useSQL) {
                 if(config.useSQL) {
                     // TODO: Check guid does not exceed the column limit
                     // TODO: Check guid does not exist
-                    mysql.pool.query(
+		    try {					
+                    	var result = await mysql.conn.query(
                         'insert into linksToProcess (`guid`, `link`, `pubDate`) values (?, ?, ?)',
-                        [item.guid, item.link, date],
-                        (err, result) => {
-                            if(err)
-                            {
-                                // TODO: Log in txt file
-                                console.log(err);
-                            }
-                            else
-                            {
-                                console.log(result);
-                            }
-                        }
-                    );
+                        [item.guid, item.link, date]);
+			console.log(result);
+		    }
+		    catch(ex) {
+			    //console.log(ex);
+			    console.log("Some error");
+		    }
                 }
                 else {
                     // Populate to firestore db
@@ -81,4 +80,9 @@ if (config.useSQL) {
             })();
         }
     });
+}finally{
+	if(config.useSQL && mysql.conn && mysql.conn.end) {
+	mysql.conn.end(); }
+}
 })();
+
