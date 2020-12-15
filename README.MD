@@ -6,13 +6,15 @@ A set of tools for a fully automated luxury news blog.
 
 License: MIT
 
-As MSN replaces their journalists with [news-writing bots](https://www.theguardian.com/technology/2020/may/30/microsoft-sacks-journalists-to-replace-them-with-robots), how might the problem of generating accurate yet fully automated news headlines be solved? The strategy pursued in this project is to derive novel content directly from the headlines of major news outlets such as CNN, the New York Times, and the Guardian. It is impossible to generate an n-length word sequence that is not also present in the source material using Markov chains. This restricts the generated news headlines to material that is actually being published by respected news institutions.
+As MSN replaces their journalists with [news-writing bots](https://www.theguardian.com/technology/2020/may/30/microsoft-sacks-journalists-to-replace-them-with-robots), how might the problem of generating accurate yet fully automated news headlines be solved? The strategy pursued in this project is to derive novel content directly from the headlines of major news outlets such as CNN, the New York Times, and the Guardian. This way, it is impossible to generate an n-length word sequence that is not present in the source material. This restricts the generated news headlines to content that is actually being published by respected news institutions.
 
 ## Where do the headlines come from?
 The raw data comes from the [Google News RSS feed](https://news.google.com/rss), pulled via the [RSS Parser](https://www.npmjs.com/package/rss-parser) package for Node. The `content` member of each returned RSS `item` contains a set of 4 or 5 headlines of a related story as `<a>` tags, which are themeselves list items of an `<ol>` HTML entity. [JSDOM](https://github.com/jsdom/jsdom), a package for manipulating HTML elements in Node, is used to collect the `<a>` tags into an array via the familiar `querySelectorAll('a')` function. 
 
 After pulling the data from the RSS feed, `google.js` stores each of the stories and their composite headlines in an array of arrays, like below:
 ```json
+[
+
   [
     "Trump says he and first lady have tested positive for coronavirus",
     "President Donald Trump says he has tested positive for coronavirus",
@@ -129,7 +131,7 @@ Using the [Axios](https://www.npmjs.com/package/axios) HTTP client, the file `in
 * `time` (Unix time stamp)
 
 ### getDomain()
-Of special interest is the function `getDomain()` in the shared library `app.js`, which receives as an argument any URL string in any format, and returns a boolean indicating if the site appears in the array of sites stored in `sites.json`. Since the array stores domains in the format `domain.com`, this function needs to process all URLs that are variants of the following forms: 
+Of special interest is the function `getDomain()` in the shared library `app.js`, which receives as an argument any URL string in any format, and returns a stripped domain of the format `domain.com`. This function can process all URLs that are variants of the following forms: 
 * `https://contoso.com`
 * `http://contoso.com`
 * `https://www.contoso.com`
