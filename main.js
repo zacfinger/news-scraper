@@ -1,33 +1,85 @@
 // 1. on the hour grab the stories on google news from the last hour and store in db
-// 2. for each link stored
-// // find oldest link in collection
-// // grab summary from API
-// // identify parts of speech
-// // use thesaurus API
-// // swap out ordering of clauses
-// // post in DB
-// // delete link
-const fetch = require("node-fetch");
+// 2. every 15 mins
+// // for each link stored
+// // // find oldest link in collection
+// // // grab summary from API
+// // // identify parts of speech
+// // // use thesaurus API
+// // // swap out ordering of clauses
+// // // post in DB
+// // // delete link
+
+// Load config settings
 const config = require('./config');
-const admin = require('firebase-admin');
-var pos = require('pos');
-var thesaurus = require("thesaurus");
-const app = require('./app');
 
-let serviceAccount = require(config.jsonPath);
+// Require dependencies
+const fetch = require("node-fetch");
+const pos = require('pos');
+const thesaurus = require("thesaurus");
+const app = require('./app'); // Common app functions
 
-// Check if app already initialized
-// https://stackoverflow.com/questions/57763991/initializeapp-when-adding-firebase-to-app-and-to-server
-if (!admin.apps.length){
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
-  }
+// Instantiate dependency objects
+// Later load conditionally based on config
+let mysql = null; // mysql object
+let admin = null; // Firestore objects
+let serviceAccount = null;
+let db = null;
 
-let db = admin.firestore();
+// Conditionally load dependencies
+if (config.useSQL) {
+    mysql = require('./dbcon.js');
+    util = require('util');
+    // https://stackoverflow.com/questions/44004418/node-js-async-await-using-with-mysql
+    // https://mhagemann.medium.com/create-a-mysql-database-middleware-with-node-js-8-and-async-await-6984a09d49f4
+    mysql.conn.query = util.promisify(mysql.conn.query).bind(mysql.conn);
+} else {
+    // Get Firestore values if needed
+    admin = require('firebase-admin');
+    serviceAccount = require(config.jsonPath);
 
-var id = -1
-var url = ""
+    // Check if app already initialized
+    // https://stackoverflow.com/questions/57763991/initializeapp-when-adding-firebase-to-app-and-to-server
+    if (!admin.apps.length){
+        admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+        });
+    }
+
+    db = admin.firestore();
+}
+
+// Parameter to store URL of oldest story
+// TODO: Use story objects with members URL, summary etc
+var url = "";
+
+const getURLofOldestStorySQL = async () => {
+
+    var guid = null;
+    var oldestURL = "";
+
+    try {
+        // Find story with oldest time stamp
+        // https://stackoverflow.com/questions/19827388/mysql-select-top-n-max-values
+        var rows = await mysql.conn.query('select * from linksToProcess order by pubDate asc limit 1');
+
+        if(rows.length > 0){
+            guid = rows[0].guid;
+            oldestURL = rows[0].link;
+        }
+
+        // Delete oldest story
+        if(guid) {
+            await mysql.conn.query('delete from linksToProcess where guid = ?', [guid]);
+        }
+        
+    }
+    catch (ex) {
+        console.log(ex);
+    }
+
+    return oldestURL;
+
+}
 
 const getURLofOldestStory = async () => {
 
@@ -39,6 +91,7 @@ const getURLofOldestStory = async () => {
         // https://stackoverflow.com/questions/59081736/synchronously-iterate-through-firestore-collection
         // https://stackoverflow.com/questions/53524187/query-firestore-database-on-timestamp-field
         const links = await db.collection("linksToProcess").get();
+        //console.log(links.docs);
 
         var oldestDate = new Date();
         var oldestIndex = -1
@@ -52,7 +105,6 @@ const getURLofOldestStory = async () => {
                 
                 oldestIndex = index;
                 oldestDate = pubDate;
-                id = links.docs[index].id;
             }
             
         }
@@ -87,7 +139,7 @@ const getSummary = async (url) => {
 
         // TODO: replace all double quotes with single quotes 
         const json = await response.json();
-        console.log(json);
+        //console.log(json);
 
         if(!("sm_api_error" in json)){
             return json.sm_api_content;
@@ -103,9 +155,11 @@ const getSummary = async (url) => {
 
 const thesaurusize = (sourceText) => {
 
-    // TODO: Include credit at end of first sentence
-    // For example "According to <domain.com>, <first_sentence>"
+    // TODO: Include credit at beginning of second paragraph
+    // "According to <domain.com>, <first_sentence>."
     // "<first_sentence>, according to a new report from <domain.com> on <day_of_week>"
+    // "Local outlet <domain.com> reported on <day_of_week> that <first_sentence>"
+    // "Sources confirmed to <domain.com> that <first_sentence>"
 
     var newSummary = ""
     var words = sourceText.split(" ");
@@ -156,17 +210,29 @@ const thesaurusize = (sourceText) => {
     
     var summary = ""
 
-    // Find oldest non-processed story and remove from database
-    url = await getURLofOldestStory();
-    
-    if(url.length > 0){
-        summary = await getSummary(url);
-    }
+    try {
 
-    if(summary.length > 0){
-        summary = thesaurusize(summary);
+        // Find oldest non-processed story and remove from database
+        if(config.useSQL){
+            url = await getURLofOldestStorySQL();
+        }
+        else {
+            url = await getURLofOldestStory();
+        }
+        
+        if(url.length > 0){
+            summary = await getSummary(url);
+        }
+
+        if(summary.length > 0){
+            summary = thesaurusize(summary);
+        }
+        
+        console.log(summary);
+
+    } finally {
+        if(config.useSQL && mysql.conn && mysql.conn.end) {
+        mysql.conn.end(); }
     }
-    
-    console.log(summary);
 
 })();
