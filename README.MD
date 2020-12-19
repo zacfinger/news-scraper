@@ -6,7 +6,7 @@ A set of tools for a fully automated luxury news blog.
 
 License: MIT
 
-As MSN replaces their journalists with [news-writing bots](https://www.theguardian.com/technology/2020/may/30/microsoft-sacks-journalists-to-replace-them-with-robots), how might the problem of generating accurate yet fully automated news headlines be solved? The strategy pursued in this project is to derive novel content directly from the headlines of major news outlets such as CNN, the New York Times, and the Guardian. This way, it is impossible to generate an n-length word sequence that is not present in the source material. This restricts the generated news headlines to content that is actually being published by respected news institutions.
+With MSN replacing their journalists with [news-writing bots](https://www.theguardian.com/technology/2020/may/30/microsoft-sacks-journalists-to-replace-them-with-robots) and the spectre of Facebook haunting the internets with [automatic news summarization tools](https://www.businessinsider.com/facebook-tldr-ai-tool-read-news-articles-for-you-2020-12), how might we solve the problem of generating accurate yet fully automated news headlines? The strategy pursued in this project is to derive novel content directly from the headlines of major news outlets such as CNN, the New York Times, and the Guardian. This way, it is impossible to generate an n-length word sequence that is not present in the source material. This restricts the generated news headlines to content that is actually being published by respected news institutions.
 
 ## Where do the headlines come from?
 The raw data comes from the [Google News RSS feed](https://news.google.com/rss), pulled via the [RSS Parser](https://www.npmjs.com/package/rss-parser) package for Node. The `content` member of each returned RSS `item` contains a set of 4 or 5 headlines of a related story as `<a>` tags, which are themeselves list items of an `<ol>` HTML entity. [JSDOM](https://github.com/jsdom/jsdom), a package for manipulating HTML elements in Node, is used to collect the `<a>` tags into an array via the familiar `querySelectorAll('a')` function. 
@@ -30,9 +30,9 @@ After pulling the data from the RSS feed, `google.js` stores each of the stories
     "House approves $2.2 trillion stimulus plan from Democrats with no bipartisan deal in sight",
     "House passes $2.2 trillion Democratic coronavirus stimulus bill"
   ],
-
-  ...
   
+  // more stories...
+
 ]
 ```
 ## How does it generate the headline?
@@ -103,7 +103,8 @@ let bank = [
 ```
 Starting from the first word of any of the headlines, we can use naive Markov chaining to generate new headlines from this data structure with the below stochastic algorithm:
 ```javascript
-while(bank[currentWord].length > 0){
+while(bank[currentWord].length > 0)
+{
 
 	headline += currentWord + " ";
 	
