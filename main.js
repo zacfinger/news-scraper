@@ -21,6 +21,7 @@ const app = require('./app'); // Common app functions
 // Instantiate dependency objects
 // Later load conditionally based on config
 let mysql = null; // mysql object
+let util = null;
 let admin = null; // Firestore objects
 let serviceAccount = null;
 let db = null;
@@ -130,7 +131,7 @@ const getURLofOldestStory = async () => {
 const getSummary = async (url) => {
     try {
         const response = await fetch(("http://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
-        + "&SM_WITH_BREAK=true" + "&SM_LENGTH=40" + "&SM_URL=" + url), {
+        /*+ "&SM_WITH_BREAK=true"*/ + "&SM_LENGTH=40" + "&SM_URL=" + url), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -139,9 +140,10 @@ const getSummary = async (url) => {
 
         // TODO: replace all double quotes with single quotes 
         const json = await response.json();
-        //console.log(json);
+        console.log(json);
 
         if(!("sm_api_error" in json)){
+            //console.log(json.sm_api_content);
             return json.sm_api_content;
         }
  
@@ -182,7 +184,7 @@ const thesaurusize = (sourceText) => {
             var tag = tagger.tag([words[i]]);
             
             // If the word is any kind of ADVERB or ADJECTIVE
-            // TODO: Possibly use https://www.npmjs.com/package/thesaurus-com instead
+            // TODO: Possibly use https://www.npmjs.com/package/thesaurize instead
             if(tag[0][1] == "RB" || tag[0][1] == "JJ" ||
                tag[0][1] == "JJR" || tag[0][1] == "JJS" ||
                tag[0][1] == "RBR" || tag[0][1] == "RBS"){
@@ -206,6 +208,32 @@ const thesaurusize = (sourceText) => {
     return newSummary;
 }
 
+const spinner = async(sourceText) => {
+
+    var request = "email_address=" + config.spinRewriter_email;
+    request += "&api_key=" + config.spinRewriter_key;
+    request += "&action=unique_variation";
+    request += "&text=\"" + sourceText + "\"";
+    //request += "&auto_sentences=true";
+    //request += "&auto_paragraphs=true";
+    //request += "&auto_new_paragraphs=true";
+    request += "&reorder_paragraphs=true";
+    request += "&use_only_synonyms=true";
+    request += "&auto_sentence_trees=true";
+    request += "&auto_protected_terms=true";
+    request += "&nested_spintax=true"
+
+    var response = await fetch("https://www.spinrewriter.com/action/api", {
+        method: 'POST',
+        body: request,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' } 
+    });
+
+    const json = await response.json();
+
+    return json.response;
+}
+
 (async() => {
     
     var summary = ""
@@ -225,9 +253,11 @@ const thesaurusize = (sourceText) => {
         }
 
         if(summary.length > 0){
-            summary = thesaurusize(summary);
+            
+            summary = await spinner(summary);
+            //summary = thesaurusize(summary);
         }
-        
+        console.log("------------------------")
         console.log(summary);
 
     } finally {

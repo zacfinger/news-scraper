@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "0.12.13",
+  "version": "0.12.19",
   "description": "Scrapes top news sites",
   "main": "main.js",
   "scripts": {
@@ -28,6 +28,7 @@
     "node-fetch": "^2.6.1",
     "pos": "^0.4.2",
     "rss-parser": "^3.8.0",
+    "thesaurize": "^1.0.11",
     "thesaurus": "0.0.1",
     "util": "^0.12.3"
   }
