@@ -49,42 +49,54 @@ if (config.useSQL) {
     db = admin.firestore();
 }
 
-// Parameter to store URL of oldest story
-// TODO: Use story objects with members URL, summary etc
-var url = "";
+// Use story objects with members URL, summary etc
+const Story = (title = null, guid = null, body = null, pubDate = null, link = null, img = null, wordBank = null) => {
+    return {
+        "title": title,     // Title of story
+        "guid": guid,       // Google News GUID
+        "body": body,       // Body of story
+        "pubDate": pubDate, // Google News pubDate
+        "link": link,       // Original URL
+        "img": img,         // Image URL
+        "error": true,      // Error
+        "wordBank": wordBank
+    }
+}
 
-const getURLofOldestStorySQL = async () => {
+const getOldestStoryFromSQL = async () => {
 
-    var guid = null;
-    var oldestURL = "";
-
+    let story = Story();
+    
     try {
         // Find story with oldest time stamp
         // https://stackoverflow.com/questions/19827388/mysql-select-top-n-max-values
         var rows = await mysql.conn.query('select * from linksToProcess order by pubDate asc limit 1');
 
         if(rows.length > 0){
-            guid = rows[0].guid;
-            oldestURL = rows[0].link;
+            story.guid = rows[0].guid;
+            story.link = rows[0].link;
+            story.pubDate = rows[0].pubDate;
         }
 
         // Delete oldest story
-        if(guid) {
-            await mysql.conn.query('delete from linksToProcess where guid = ?', [guid]);
+        if(story.guid) {
+            await mysql.conn.query('delete from linksToProcess where guid = ?', [story.guid]);
         }
+
+        story.error = false;
         
     }
     catch (ex) {
         console.log(ex);
     }
 
-    return oldestURL;
+    return story;
 
 }
 
-const getURLofOldestStory = async () => {
-
-    var oldestURL = ""
+const getOldestStoryFromFirestore = async () => {
+    
+    let story = Story();
 
     try {
 
@@ -92,7 +104,6 @@ const getURLofOldestStory = async () => {
         // https://stackoverflow.com/questions/59081736/synchronously-iterate-through-firestore-collection
         // https://stackoverflow.com/questions/53524187/query-firestore-database-on-timestamp-field
         const links = await db.collection("linksToProcess").get();
-        //console.log(links.docs);
 
         var oldestDate = new Date();
         var oldestIndex = -1
@@ -110,14 +121,17 @@ const getURLofOldestStory = async () => {
             
         }
 
-        if(oldestIndex >= 0){
+        if(oldestIndex != -1){
             
-            oldestURL = links.docs[oldestIndex].data().url;
+            story.link = links.docs[oldestIndex].data().url;
+            story.guid = links.docs[oldestIndex].id;
+            story.pubDate = oldestDate;
             
             // Delete document reference
             // https://stackoverflow.com/questions/47180076/how-to-delete-document-from-firestore-using-where-clause
             links.docs[oldestIndex].ref.delete();
 
+            story.error = false;
         }
 
     } catch (error) {
@@ -125,13 +139,16 @@ const getURLofOldestStory = async () => {
         //throw error;
     }
 
-    return oldestURL;
+    return story;
 }
 
-const getSummary = async (url) => {
+const summarizeStory = async (story) => {
+
+    story.error = true;
+
     try {
         const response = await fetch(("http://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
-        /*+ "&SM_WITH_BREAK=true"*/ + "&SM_LENGTH=40" + "&SM_URL=" + url), {
+        /*+ "&SM_WITH_BREAK=true"*/ + "&SM_LENGTH=40" + "&SM_URL=" + story.link), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -141,10 +158,11 @@ const getSummary = async (url) => {
         // TODO: replace all double quotes with single quotes 
         const json = await response.json();
         console.log(json);
-
+        
         if(!("sm_api_error" in json)){
-            //console.log(json.sm_api_content);
-            return json.sm_api_content;
+            story.body = json.sm_api_content;
+            story.title = json.sm_api_title;
+            story.error = false;
         }
  
     } catch (error) {
@@ -152,7 +170,25 @@ const getSummary = async (url) => {
         //throw error;
     }
 
-    return ""
+    return story;
+}
+
+const getMostCommonWords = (sourceText) => {
+    var wordCounts = { };
+    var words = sourceText.split(/\b/);
+
+    for(var i = 0; i < words.length; i++){
+        // Count most common words
+        // https://stackoverflow.com/questions/6565333/using-javascript-to-find-most-common-words-in-string
+        wordCounts["_" + words[i]] = (wordCounts["_" + words[i]] || 0) + 1;
+    }
+
+    return wordCounts;
+    
+}
+
+const thesaurusizeStory = (story) => {
+    // account for most common words...
 }
 
 const thesaurusize = (sourceText) => {
@@ -162,105 +198,145 @@ const thesaurusize = (sourceText) => {
     // "<first_sentence>, according to a new report from <domain.com> on <day_of_week>"
     // "Local outlet <domain.com> reported on <day_of_week> that <first_sentence>"
     // "Sources confirmed to <domain.com> that <first_sentence>"
-
-    var newSummary = ""
-    var words = sourceText.split(" ");
-    var tagger = new pos.Tagger();
-    var newWords = [];
-    var newWord = undefined;
-    var sourceCited = false;
-
-    // Iterate through summary word for word
-    for (i in words){
-
-        if(sourceCited == false && words[i].includes("[BREAK]")){
+    /*  if(sourceCited == false && words[i].includes("[BREAK]")){
             newSummary += words[i] + " According to a report by " + app.getDomain(url) + ",";
             sourceCited = true;
         }
-        else {
-            newWord = undefined;
-        
-            // Identify POS of word
-            var tag = tagger.tag([words[i]]);
-            
-            // If the word is any kind of ADVERB or ADJECTIVE
-            // TODO: Possibly use https://www.npmjs.com/package/thesaurize instead
-            if(tag[0][1] == "RB" || tag[0][1] == "JJ" ||
-               tag[0][1] == "JJR" || tag[0][1] == "JJS" ||
-               tag[0][1] == "RBR" || tag[0][1] == "RBS"){
-                
-                newWords = thesaurus.find(words[i])
+    */
+
+    var newSummary = ""
+    var words = sourceText.split(/\b/);
+    var tagger = new pos.Tagger();
+    var newWords = [];
+    var newWord = undefined;
     
-                newWord = newWords[Math.floor(Math.random() * newWords.length)];
-            }
-            // Protect against no words found
-            if(newWord == undefined){
-                newSummary += words[i];
-            }
-            else {
-                newSummary += newWord;
-            }
-        }
+    // Iterate through summary word for word
+    for (i in words){
         
-        newSummary += " ";
+        newWord = undefined;
+    
+        // Identify POS of word
+        var tag = tagger.tag([words[i]]);
+        
+        // If the word is not any kind of singular or plural PROPER NOUN
+        // TODO: Possibly use https://www.npmjs.com/package/thesaurize instead
+        if(tag[0][1].toLowerCase() != "NNP" && tag[0][1].toLowerCase() != "NNPS" && tag[0][1].toLowerCase() != "in"){
+            
+            newWords = thesaurus.find(words[i])
+
+            newWord = newWords[Math.floor(Math.random() * newWords.length)];
+        }
+        // Protect against no words found
+        if(newWord == undefined){
+            newSummary += words[i];
+        }
+        else {
+            newSummary += newWord;
+        }    
     }
 
     return newSummary;
 }
 
+const spinStory = async(story) => {
+
+    story.error = true;
+
+    try {
+        story.body = await spinner(story.body);
+        story.error = false;
+    }
+    catch(ex){
+        console.log(ex);
+    }
+
+    return story;
+}
+
 const spinner = async(sourceText) => {
 
-    var request = "email_address=" + config.spinRewriter_email;
-    request += "&api_key=" + config.spinRewriter_key;
-    request += "&action=unique_variation";
-    request += "&text=\"" + sourceText + "\"";
-    //request += "&auto_sentences=true";
-    //request += "&auto_paragraphs=true";
-    //request += "&auto_new_paragraphs=true";
-    request += "&reorder_paragraphs=true";
-    request += "&use_only_synonyms=true";
-    request += "&auto_sentence_trees=true";
-    request += "&auto_protected_terms=true";
-    request += "&nested_spintax=true"
+    try {
 
-    var response = await fetch("https://www.spinrewriter.com/action/api", {
-        method: 'POST',
-        body: request,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' } 
-    });
+        var request = "email_address=" + config.spinRewriter_email;
+        request += "&api_key=" + config.spinRewriter_key;
+        request += "&action=unique_variation";
+        request += "&text=\"" + sourceText + "\"";
+        //request += "&auto_sentences=true";
+        //request += "&auto_paragraphs=true";
+        //request += "&auto_new_paragraphs=true";
+        request += "&reorder_paragraphs=true";
+        request += "&use_only_synonyms=true";
+        request += "&auto_sentence_trees=true";
+        request += "&auto_protected_terms=true";
+        request += "&nested_spintax=true"
+    
+        var response = await fetch("https://www.spinrewriter.com/action/api", {
+            method: 'POST',
+            body: request,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' } 
+        });
+    
+        // TODO: Account for API credential error
+        const json = await response.json();
+    
+        return json.response;
 
-    const json = await response.json();
+    } catch(error) {
+        throw(error);
+    }
+}
 
-    return json.response;
+const saveSpunStoryToSQL = async(storyToSave) => {
+
+    console.log(storyToSave);
 }
 
 (async() => {
-    
-    var summary = ""
+
+    let newStory = Story();
 
     try {
 
         // Find oldest non-processed story and remove from database
         if(config.useSQL){
-            url = await getURLofOldestStorySQL();
+            newStory = await getOldestStoryFromSQL();
         }
         else {
-            url = await getURLofOldestStory();
+            newStory = await getOldestStoryFromFirestore();
         }
         
-        if(url.length > 0){
-            summary = await getSummary(url);
+        if(!newStory.error && newStory.link && newStory.link.length > 0){
+            newStory = await summarizeStory(newStory);
         }
 
-        if(summary.length > 0){
+        /*
+        if(!newStory.error && newStory.body && newStory.body.length > 0){
+            newStory.wordBank = getMostCommonWords(newStory.body);
+        }*/
+
+        if(!newStory.error && newStory.title && newStory.title.length > 0){
+            newStory.title = thesaurusize(newStory.title);
+        }
+
+        if(!newStory.error && newStory.body && newStory.body.length > 0){
             
-            summary = await spinner(summary);
-            //summary = thesaurusize(summary);
+            newStory = await spinStory(newStory);
         }
-        console.log("------------------------")
-        console.log(summary);
 
-    } finally {
+        if(!newStory.error){
+            if(!config.useSQL) {
+                // Populate to firestore db
+                db.collection('spunStories').doc(newStory.guid).set(newStory);
+            } else {
+                await saveSpunStoryToSQL(newStory);
+            }
+            
+        }
+        
+    } catch (ex) {
+        console.log(ex);
+    } 
+    finally {
         if(config.useSQL && mysql.conn && mysql.conn.end) {
         mysql.conn.end(); }
     }
