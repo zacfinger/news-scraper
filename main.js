@@ -288,7 +288,15 @@ const spinner = async(sourceText) => {
 
 const saveSpunStoryToSQL = async(storyToSave) => {
 
-    console.log(storyToSave);
+    try {
+    	var result = await mysql.conn.query('insert into spunStories (`guid`, `body`, `error`, `img`, `link`, `pubDate`, `title`) values (?,?,?,?,?,?,?)',
+					    [storyToSave.guid, storyToSave.body, storyToSave.error, storyToSave.img, storyToSave.link, storyToSave.pubDate, storyToSave.title]);
+	console.log(result);
+    }
+    catch (ex) {
+	    console.log(ex);
+	    console.log("sql insert error");
+    }
 }
 
 (async() => {
