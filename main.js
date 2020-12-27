@@ -21,7 +21,6 @@ const app = require('./app'); // Common app functions
 // Instantiate dependency objects
 // Later load conditionally based on config
 let mysql = null; // mysql object
-let util = null;
 let admin = null; // Firestore objects
 let serviceAccount = null;
 let db = null;
@@ -29,10 +28,7 @@ let db = null;
 // Conditionally load dependencies
 if (config.useSQL) {
     mysql = require('./dbcon.js');
-    util = require('util');
-    // https://stackoverflow.com/questions/44004418/node-js-async-await-using-with-mysql
-    // https://mhagemann.medium.com/create-a-mysql-database-middleware-with-node-js-8-and-async-await-6984a09d49f4
-    mysql.conn.query = util.promisify(mysql.conn.query).bind(mysql.conn);
+
 } else {
     // Get Firestore values if needed
     admin = require('firebase-admin');
