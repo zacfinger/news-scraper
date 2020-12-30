@@ -19,6 +19,19 @@ app.get('/api/', function(req, res, next) {
 	});
 });
 
+app.get('/api/story/:guid', function (req, res, next) { 
+	mysql.pool.query('select * from spunStories where guid=?',
+		[req.params.guid],
+		(err, rows) => {
+			if (err) {
+				next(err);
+				return;
+			}
+			res.json(rows[0]);
+
+	});
+});
+
 app.listen(app.get('port'), function(){
 	console.log('Express started on http://localhost:' + app.get('port') + '; press Ctrl-C to terminate.');
 });
