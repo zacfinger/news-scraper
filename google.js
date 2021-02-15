@@ -7,6 +7,7 @@ let parser = new Parser();
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 const admin = require('firebase-admin');
+const image = require('./image');
 
 let serviceAccount = require(config.jsonPath);
 
@@ -139,24 +140,7 @@ const createWordBank = (story) => {
     return wordBank;
 }
 
-const getImage = async (story) => {
-    
-    let words = getMostCommonWords(story);
-
-    // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
-    let wordsSorted = Object.keys(words).sort(function(a,b){return words[b]-words[a]})
-
-    //var url = await unsplash.getImage(wordsSorted[0], wordsSorted[1]);
-    var q1 = wordsSorted[0];
-    var q2 = wordsSorted[1];
-
-    const response = await axios.get('https://api.unsplash.com/search/photos?client_id='+config.client_id+'&query='+q1+'+'+q2);
-    
-    return response.data.results[0].urls.small;
-
-}
-
-(async() => {
+const main = async () => {
 
     var url = 'https://news.google.com/rss'
     //var url = 'https://news.google.com/rss/search?q=coronavirus'
@@ -168,11 +152,16 @@ const getImage = async (story) => {
         (async() => {
 
             let href = story.pop();
-            
+
             let firstWord = getBestHeadline(story).split(" ")[0];
             let bank = createWordBank(story);
-            let img = await getImage(story);
-            //let img = "";
+            
+            // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
+            let words = getMostCommonWords(story);
+            let wordsSorted = Object.keys(words).sort(function(a,b){return words[b]-words[a]});
+
+            // Get image
+            let img = await image.getImage([wordsSorted[0], wordsSorted[1]]);
 
             let currentWord = firstWord;
             let headline = "";
@@ -206,5 +195,6 @@ const getImage = async (story) => {
             console.log("--------------------------------");
         })();
     });
-    console.log(stories.length);
-})();
+}
+
+module.exports.main = main;
