@@ -10,7 +10,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(CORS());
 
 app.get('/api/', function(req, res, next) {
-	mysql.pool.query('select * from spunStories', (err, rows, fields) => {
+	mysql.pool.query('select * from spunStories order by pubDate desc', (err, rows, fields) => {
 		if (err) {
 			next(err);
 			return;
