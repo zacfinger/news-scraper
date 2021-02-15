@@ -7,6 +7,7 @@ let parser = new Parser();
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 const admin = require('firebase-admin');
+const app = require('./app')
 const image = require('./image');
 
 let serviceAccount = require(config.jsonPath);
@@ -59,35 +60,19 @@ const getHeadlines = async (url) => {
 };
 
 // Receives array of headlines as strings
-// Returns dictionary with words as keys
-// And word count as values
-const getMostCommonWords = (story) => {
-    let words = {};
-
-    story.forEach((headline) => {
-
-        headline.split(" ").map((word) => {
-            if(!(word in words)){
-                // TODO: Need to account for caps/lowercase
-                // TODO: Need to account for possessive, i.e. "Trump's"
-                words[""+word] = 1;
-            }
-            else{
-                words[word] += 1;
-            }
-        });
-    });
-
-    return words;
-}
-
-// Receives array of headlines as strings
 // Returns "best" headline based on which headline 
 // has the most amount of "high value" words
 // as determined by word frequency
 const getBestHeadline = (story) => {
 
-    let words = getMostCommonWords(story);
+    // Combine headlines into one string 
+    // to use getMostCommonWords
+    let headlines = "";
+    story.map((headline) => {
+        headlines += headline + " ";
+    });
+
+    let words = app.getMostCommonWords(headlines);
     
     let rankings = {};
 
@@ -96,13 +81,13 @@ const getBestHeadline = (story) => {
         let points = 0;
         
         headline.split(" ").map((word) => {
-            points += words[word];  
+            points += words["_" + word.toLowerCase()];  
         });
 
         rankings[headline] = points;
     })
 
-    //console.log(rankings);
+    console.log(rankings);
 
     // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
     let keysSorted = Object.keys(rankings).sort(function(a,b){return rankings[b]-rankings[a]})
@@ -155,13 +140,23 @@ const main = async () => {
 
             let firstWord = getBestHeadline(story).split(" ")[0];
             let bank = createWordBank(story);
+
+            // Combine headlines into one string 
+            // to use getMostCommonWords
+            let headlines = "";
+            story.map((headline) => {
+                headlines += headline + " ";
+            });
+
+            let words = app.getMostCommonWords(headlines);
             
+            // Sory by word frequency
             // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
-            let words = getMostCommonWords(story);
             let wordsSorted = Object.keys(words).sort(function(a,b){return words[b]-words[a]});
 
             // Get image
-            let img = await image.getImage([wordsSorted[0], wordsSorted[1]]);
+            let img = await image.getImage([wordsSorted[0].substring(1), wordsSorted[1].substring(1)]);
+            //let img = "";
 
             let currentWord = firstWord;
             let headline = "";

@@ -17,6 +17,7 @@ const fetch = require("node-fetch");
 const pos = require('pos');
 const thesaurus = require("thesaurus");
 const app = require('./app'); // Common app functions
+const image = require('./image');
 
 // Instantiate dependency objects
 // Later load conditionally based on config
@@ -46,7 +47,7 @@ if (config.useSQL) {
 }
 
 // Use story objects with members URL, summary etc
-const Story = (title = null, guid = null, body = null, pubDate = null, link = null, img = null, wordBank = null) => {
+const Story = (title = null, guid = null, body = null, pubDate = null, link = null, img = null, wordBank = null, wordCount = null, slug = null) => {
     return {
         "title": title,     // Title of story
         "guid": guid,       // Google News GUID
@@ -55,7 +56,9 @@ const Story = (title = null, guid = null, body = null, pubDate = null, link = nu
         "link": link,       // Original URL
         "img": img,         // Image URL
         "error": true,      // Error
-        "wordBank": wordBank
+        "wordBank": wordBank,
+        "wordCount": wordCount,
+        "slug": slug
     }
 }
 
@@ -158,6 +161,7 @@ const summarizeStory = async (story) => {
         if(!("sm_api_error" in json)){
             story.body = json.sm_api_content;
             story.title = json.sm_api_title;
+            story.slug = json.sm_api_title.split(" ").join("-");
             story.error = false;
         }
  
@@ -167,20 +171,6 @@ const summarizeStory = async (story) => {
     }
 
     return story;
-}
-
-const getMostCommonWords = (sourceText) => {
-    var wordCounts = { };
-    var words = sourceText.split(/\b/);
-
-    for(var i = 0; i < words.length; i++){
-        // Count most common words
-        // https://stackoverflow.com/questions/6565333/using-javascript-to-find-most-common-words-in-string
-        wordCounts["_" + words[i]] = (wordCounts["_" + words[i]] || 0) + 1;
-    }
-
-    return wordCounts;
-    
 }
 
 const thesaurusizeStory = (story) => {
@@ -313,10 +303,13 @@ const saveSpunStoryToSQL = async(storyToSave) => {
             newStory = await summarizeStory(newStory);
         }
 
-        /*
         if(!newStory.error && newStory.body && newStory.body.length > 0){
-            newStory.wordBank = getMostCommonWords(newStory.body);
-        }*/
+            newStory.wordCount = app.getMostCommonWords(newStory.body);
+        }
+
+        if(!newStory.error && newStory.slug && newStory.slug.length > 0){
+            newStory.img = await image.getImage(newStory.slug.split("-"));
+        }
 
         if(!newStory.error && newStory.title && newStory.title.length > 0){
             newStory.title = thesaurusize(newStory.title);

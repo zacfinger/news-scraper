@@ -1,4 +1,4 @@
-const config = require("./config")
+const config = require('./config')
 const axios = require('axios')
 
 const url = "https://api.unsplash.com/search/photos?client_id=";
@@ -10,7 +10,9 @@ const getImage = async (words) => {
         var request = url + config.client_id + '&query=';
 
         for(let i = 0; i < words.length; i++) {
-            request += words[i];
+
+            // Add to request query
+            request += words[i].split(" ").join(""); // Handle unescaped characters
 
             if(i + 1 < words.length){
                 request += "+";
