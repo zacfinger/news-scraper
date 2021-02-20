@@ -1,5 +1,6 @@
 const axios = require('axios');
 const config = require('./config');
+const db = require('./db');
 
 const url = 'http://api.openweathermap.org/data/2.5/onecall?'
 
@@ -63,10 +64,10 @@ const getWeather = async () => {
                 weather.icon = 'weather-few-clouds-night';
                 break;
             case '03d':
-                weather.icon = 'weather-many-clouds';
+                weather.icon = 'weather-few-clouds';
                 break;
             case '03n':
-                weather.icon = 'weather-many-clouds';
+                weather.icon = 'weather-few-clouds-night';
                 break;
             case '04d':
                 weather.icon = 'weather-many-clouds';
@@ -92,14 +93,26 @@ const getWeather = async () => {
 
         weather.min = Math.round(response.data.daily[0].temp.min);
 
-        console.log(weather);
+        weather.error = false;
 
     } catch (error) {
         console.log(error);
+        
+        weather.error = true;
     }
+
+    return weather;
 
 }
 
 (async () => {
-    await getWeather();
+    
+    var weather = await getWeather();
+    
+    if(!weather.error) {
+        console.log(weather);
+        await db.update( 'weather', weather, { "weatherID": 0 } );
+
+    }
+
 })();
