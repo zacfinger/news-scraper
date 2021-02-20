@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(CORS());
 
-app.get('/api/', function(req, res, next) {
+app.get('/api/stories', function(req, res, next) {
 	mysql.pool.query('select * from spunStories order by pubDate desc', (err, rows, fields) => {
 		if (err) {
 			next(err);
@@ -29,6 +29,16 @@ app.get('/api/story/:guid', function (req, res, next) {
 			}
 			res.json(rows[0]);
 
+	});
+});
+
+app.get('/api/weather/', function (req, res, next) {
+	mysql.pool.query('select * from weather', (err, rows, fields) => {
+		if (err) {
+			next(err);
+			return;
+		}
+		res.json(rows[0]);
 	});
 });
 

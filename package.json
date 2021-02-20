@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "0.14.15",
+  "version": "0.14.19",
   "description": "Scrapes top news sites",
   "main": "main.js",
   "scripts": {
