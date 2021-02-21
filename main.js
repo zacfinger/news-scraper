@@ -102,6 +102,8 @@ const getOldestStoryFromFirestore = async () => {
         // Pull all links in the collection
         // https://stackoverflow.com/questions/59081736/synchronously-iterate-through-firestore-collection
         // https://stackoverflow.com/questions/53524187/query-firestore-database-on-timestamp-field
+        // https://stackoverflow.com/questions/50224638/order-firestore-data-by-timestamp-in-ascending-order
+        // https://stackoverflow.com/questions/54666556/get-first-element-from-collection-and-delete-it
         const links = await db.collection("linksToProcess").get();
 
         var oldestDate = new Date();
@@ -161,7 +163,7 @@ const summarizeStory = async (story) => {
         if(!("sm_api_error" in json)){
             story.body = json.sm_api_content;
             story.title = json.sm_api_title;
-            story.slug = json.sm_api_title.split(" ").join("-");
+            story.slug = json.sm_api_title.toLowerCase().split(" ").join("-");
             story.error = false;
         }
  
@@ -179,17 +181,6 @@ const thesaurusizeStory = (story) => {
 
 const thesaurusize = (sourceText) => {
 
-    // TODO: Include credit at beginning of second paragraph
-    // "According to <domain.com>, <first_sentence>."
-    // "<first_sentence>, according to a new report from <domain.com> on <day_of_week>"
-    // "Local outlet <domain.com> reported on <day_of_week> that <first_sentence>"
-    // "Sources confirmed to <domain.com> that <first_sentence>"
-    /*  if(sourceCited == false && words[i].includes("[BREAK]")){
-            newSummary += words[i] + " According to a report by " + app.getDomain(url) + ",";
-            sourceCited = true;
-        }
-    */
-
     var newSummary = ""
     var words = sourceText.split(/\b/);
     var tagger = new pos.Tagger();
@@ -204,13 +195,16 @@ const thesaurusize = (sourceText) => {
         // Identify POS of word
         var tag = tagger.tag([words[i]]);
         
-        // If the word is not any kind of singular or plural PROPER NOUN
+        // If the word is any kind of ADVERB or ADJECTIVE
         // TODO: Possibly use https://www.npmjs.com/package/thesaurize instead
-        if(tag[0][1].toLowerCase() != "NNP" && tag[0][1].toLowerCase() != "NNPS" && tag[0][1].toLowerCase() != "in"){
+        if(tag[0][1] == "RB" || tag[0][1] == "JJ" ||
+        tag[0][1] == "JJR" || tag[0][1] == "JJS" ||
+        tag[0][1] == "RBR" || tag[0][1] == "RBS"){
             
             newWords = thesaurus.find(words[i])
 
             newWord = newWords[Math.floor(Math.random() * newWords.length)];
+
         }
         // Protect against no words found
         if(newWord == undefined){
@@ -241,21 +235,37 @@ const spinStory = async(story) => {
 
 const spinner = async(sourceText) => {
 
+    // TODO: & can mess up summaries
+    sourceText = sourceText.split("&").join("and");
+
     try {
 
         var request = "email_address=" + config.spinRewriter_email;
         request += "&api_key=" + config.spinRewriter_key;
         request += "&action=unique_variation";
         request += "&text=\"" + sourceText + "\"";
+
+        // Spin (shorten) entire sentences/paragraphs
+        // Mixed luck with these settings...comment out for now
         //request += "&auto_sentences=true";
         //request += "&auto_paragraphs=true";
-        //request += "&auto_new_paragraphs=true";
+        
+        // Randomize order of paragraphs
         request += "&reorder_paragraphs=true";
-        request += "&use_only_synonyms=true";
+
+        // When set to 'true' the spun texts become almost unreadable
+        request += "&use_only_synonyms=false";
+
+        // Change sentence structure
         request += "&auto_sentence_trees=true";
+
+        // Will not spin capitalized words
+        // "University of Arizona" -> "College of Arizona"
         request += "&auto_protected_terms=true";
-        request += "&nested_spintax=true"
-    
+
+        // Two levels of spinning
+        request += "&nested_spintax=true";
+
         var response = await fetch("https://www.spinrewriter.com/action/api", {
             method: 'POST',
             body: request,
@@ -310,18 +320,37 @@ const saveSpunStoryToSQL = async(storyToSave) => {
         if(!newStory.error && newStory.slug && newStory.slug.length > 0){
             newStory.img = await image.getImage(newStory.slug.split("-"));
         }
-	else {
-	    newStory.img = 'https://images.unsplash.com/photo-1508921340878-ba53e1f016ec?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=max&w=800&q=80';
-	}
+	    else {
+	        newStory.img = 'https://images.unsplash.com/photo-1508921340878-ba53e1f016ec?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=max&w=800&q=80';
+	    }
 
         if(!newStory.error && newStory.title && newStory.title.length > 0){
             newStory.title = thesaurusize(newStory.title);
+            //newStory.body = thesaurusize(newStory.body);
         }
 
         if(!newStory.error && newStory.body && newStory.body.length > 0){
             
             newStory = await spinStory(newStory);
         }
+
+        // TODO: Provide credit in story
+        // Locate news source in story if possible, i.e.:
+        // Locate index of the string: "...sources told CNN."
+        // Link to story from the noun
+        // If source not found:
+        // TODO: Include credit at beginning of second paragraph
+        // "According to <domain.com>, <first_sentence>."
+        // "<first_sentence>, according to a new report from <domain.com> on <day_of_week>"
+        // "Local outlet <domain.com> reported on <day_of_week> that <first_sentence>"
+        // "Sources confirmed to <domain.com> that <first_sentence>"
+        /*  if(sourceCited == false && words[i].includes("[BREAK]")){
+                newSummary += words[i] + " According to a report by " + app.getDomain(url) + ",";
+                sourceCited = true;
+            }
+        */
+        console.log(newStory.title);
+        console.log(newStory.body);
 
         if(!newStory.error){
             if(!config.useSQL) {
