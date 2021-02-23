@@ -40,5 +40,61 @@ const getMostCommonWords = (sourceText) => {
     
 }
 
+// receives string of text instead of array
+// and splits into array of sentences
+const getBestSentence = (sourceText) => {
+
+    let words = getMostCommonWords(sourceText);
+
+    // Split source text into array of sentences
+    // https://stackoverflow.com/questions/11761563/javascript-regexp-for-splitting-text-into-sentences-and-keeping-the-delimiter
+    // https://stackoverflow.com/questions/40958101/js-split-text-into-sentences
+    // TODO: Sentence splitting method impacts accuracy of sentence rankings
+    let story = sourceText.match(/[^\.!\?]+[\.!\?]+["']?|.+$/g)
+
+    return getBestSentenceFromArray(story, words);
+}
+
+// Receives array of sentences as strings
+// Returns "best" sentece based on which 
+// has the most amount of "high value" words
+// as determined by word frequency
+const getBestSentenceFromArray = (story, words) => {
+
+    let rankings = {};
+
+    story.forEach((headline) => {
+
+        headline = headline.trim();
+
+        let points = 0;
+        
+        headline.split(" ").map((word) => {
+            let temp = words["_" + word.toLowerCase()]; 
+
+            // Protect against words not found because 
+            // sentence boundary unclear, usually acronyms or quotes
+            if(isNaN(temp)){
+                console.log(word);
+                console.log(words);
+                temp = 0;
+            }
+
+            points += temp;
+        });
+
+        rankings[headline] = points;
+    })
+
+    console.log(rankings);
+    
+    // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
+    let keysSorted = Object.keys(rankings).sort(function(a,b){return rankings[b]-rankings[a]})
+
+    return keysSorted[0];
+}
+
 module.exports.getDomain = getDomain;
 module.exports.getMostCommonWords = getMostCommonWords;
+module.exports.getBestSentence = getBestSentence;
+module.exports.getBestSentenceFromArray = getBestSentenceFromArray;

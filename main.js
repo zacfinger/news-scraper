@@ -47,7 +47,16 @@ if (config.useSQL) {
 }
 
 // Use story objects with members URL, summary etc
-const Story = (title = null, guid = null, body = null, pubDate = null, link = null, img = null, wordBank = null, wordCount = null, slug = null) => {
+const Story = ( title = null, 
+                guid = null, 
+                body = null, 
+                pubDate = null, 
+                link = null, 
+                img = null, 
+                wordBank = null, 
+                wordCount = null, 
+                slug = null, 
+                tagline = null) => {
     return {
         "title": title,     // Title of story
         "guid": guid,       // Google News GUID
@@ -58,7 +67,8 @@ const Story = (title = null, guid = null, body = null, pubDate = null, link = nu
         "error": true,      // Error
         "wordBank": wordBank,
         "wordCount": wordCount,
-        "slug": slug
+        "slug": slug,
+        "tagline": tagline
     }
 }
 
@@ -148,7 +158,7 @@ const summarizeStory = async (story) => {
     story.error = true;
 
     try {
-        const response = await fetch(("http://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
+        const response = await fetch(("https://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
         /*+ "&SM_WITH_BREAK=true"*/ + "&SM_LENGTH=40" + "&SM_URL=" + story.link), {
             method: 'POST',
             headers: {
@@ -313,11 +323,7 @@ const saveSpunStoryToSQL = async(storyToSave) => {
             newStory = await summarizeStory(newStory);
         }
 
-        if(!newStory.error && newStory.body && newStory.body.length > 0){
-            newStory.wordCount = app.getMostCommonWords(newStory.body);
-        }
-
-        if(!newStory.error && newStory.slug && newStory.slug.length > 0){
+        if(config.queryUnsplash && !newStory.error && newStory.slug && newStory.slug.length > 0){
             newStory.img = await image.getImage(newStory.slug.split("-"));
         }
 	    else {
@@ -327,6 +333,12 @@ const saveSpunStoryToSQL = async(storyToSave) => {
         if(!newStory.error && newStory.title && newStory.title.length > 0){
             newStory.title = thesaurusize(newStory.title);
             //newStory.body = thesaurusize(newStory.body);
+        }
+        
+        if(!newStory.error && newStory.body && newStory.body.length > 0){
+            
+            newStory.tagline = app.getBestSentence(newStory.body);
+
         }
 
         if(!newStory.error && newStory.body && newStory.body.length > 0){
@@ -349,10 +361,11 @@ const saveSpunStoryToSQL = async(storyToSave) => {
                 sourceCited = true;
             }
         */
-        console.log(newStory.title);
-        console.log(newStory.body);
 
         if(!newStory.error){
+
+            console.log(newStory);
+
             if(!config.useSQL) {
                 // Populate to firestore db
                 db.collection('spunStories').doc(newStory.guid).set(newStory);
