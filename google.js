@@ -7,7 +7,7 @@ let parser = new Parser();
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 const admin = require('firebase-admin');
-const app = require('./app')
+const Story = require('./story')
 const image = require('./image');
 
 let serviceAccount = require(config.jsonPath);
@@ -44,17 +44,18 @@ const getHeadlines = async (url) => {
             var title = links[i].textContent;
             if(!title.includes("View Full Coverage")){
                 headlines.push(links[i].textContent);
+
             }
         }
 
-        var url = item.link;
-        headlines.push(url);
+        stories.push(new Story());
+        stories[stories.length - 1].setLink(item.link);
+        stories[stories.length - 1].setSentences(headlines);
 
-        stories.push(headlines);
     }
   
   });
-
+  
   return stories;
  
 };
@@ -68,7 +69,7 @@ const createWordBank = (story) => {
 
     let wordBank = {}
 
-    story.forEach((headline) => {
+    story.getSentences().forEach((headline) => {
         
         var prev_word = null;
 
@@ -95,25 +96,18 @@ const main = async () => {
     //var url = 'https://news.google.com/rss/search?q=coronavirus'
 
     let stories = await getHeadlines(url);
-    
+
     stories.forEach((story) => {
 
         (async() => {
 
-            let href = story.pop();
+            let href = story.getLink();
 
-            // Combine headlines into one string 
-            // to use getMostCommonWords
-            let headlines = "";
-            story.map((headline) => {
-                headlines += headline + " ";
-            });
+            let words = story.getMostCommonWords();
 
-            let words = app.getMostCommonWords(headlines);
-
-            let firstWord = app.getBestSentenceFromArray(story, words).split(" ")[0];
+            let firstWord = story.getTagline().split(" ")[0];
             let bank = createWordBank(story);
-            
+           
             // Sory by word frequency
             // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
             let wordsSorted = Object.keys(words).sort(function(a,b){return words[b]-words[a]});

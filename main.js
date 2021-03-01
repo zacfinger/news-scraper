@@ -16,7 +16,7 @@ const config = require('./config');
 const fetch = require("node-fetch");
 const pos = require('pos');
 const thesaurus = require("thesaurus");
-const app = require('./app'); // Common app functions
+const Story = require('./story'); // Common app functions
 const image = require('./image');
 
 // Instantiate dependency objects
@@ -46,35 +46,10 @@ if (config.useSQL) {
     db = admin.firestore();
 }
 
-// Use story objects with members URL, summary etc
-const Story = ( title = null, 
-                guid = null, 
-                body = null, 
-                pubDate = null, 
-                link = null, 
-                img = null, 
-                wordBank = null, 
-                wordCount = null, 
-                slug = null, 
-                tagline = null) => {
-    return {
-        "title": title,     // Title of story
-        "guid": guid,       // Google News GUID
-        "body": body,       // Body of story
-        "pubDate": pubDate, // Google News pubDate
-        "link": link,       // Original URL
-        "img": img,         // Image URL
-        "error": true,      // Error
-        "wordBank": wordBank,
-        "wordCount": wordCount,
-        "slug": slug,
-        "tagline": tagline
-    }
-}
-
 const getOldestStoryFromSQL = async () => {
 
-    let story = Story();
+    let story = new Story();
+    story.setError(true);
     
     try {
         // Find story with oldest time stamp
@@ -82,17 +57,17 @@ const getOldestStoryFromSQL = async () => {
         var rows = await mysql.conn.query('select * from linksToProcess order by pubDate asc limit 1');
 
         if(rows.length > 0){
-            story.guid = rows[0].guid;
-            story.link = rows[0].link;
-            story.pubDate = rows[0].pubDate;
+            story.setGuid(rows[0].guid);
+            story.setLink(rows[0].link);
+            story.setPubDate(rows[0].pubDate);
         }
 
         // Delete oldest story
-        if(story.guid) {
-            await mysql.conn.query('delete from linksToProcess where guid = ?', [story.guid]);
+        if(story.getGuid() != null) {
+            await mysql.conn.query('delete from linksToProcess where guid = ?', [story.getGuid()]);
         }
 
-        story.error = false;
+        story.setError(false);
         
     }
     catch (ex) {
@@ -105,7 +80,8 @@ const getOldestStoryFromSQL = async () => {
 
 const getOldestStoryFromFirestore = async () => {
     
-    let story = Story();
+    let story = new Story();
+    story.setError(true);
 
     try {
 
@@ -134,15 +110,15 @@ const getOldestStoryFromFirestore = async () => {
 
         if(oldestIndex != -1){
             
-            story.link = links.docs[oldestIndex].data().url;
-            story.guid = links.docs[oldestIndex].id;
-            story.pubDate = oldestDate;
+            story.setLink(links.docs[oldestIndex].data().url);
+            story.setGuid(links.docs[oldestIndex].id);
+            story.setPubDate(oldestDate);
             
             // Delete document reference
             // https://stackoverflow.com/questions/47180076/how-to-delete-document-from-firestore-using-where-clause
             links.docs[oldestIndex].ref.delete();
 
-            story.error = false;
+            story.setError(false);
         }
 
     } catch (error) {
@@ -155,11 +131,11 @@ const getOldestStoryFromFirestore = async () => {
 
 const summarizeStory = async (story) => {
 
-    story.error = true;
+    story.setError(true);
 
     try {
         const response = await fetch(("https://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
-        /*+ "&SM_WITH_BREAK=true"*/ + "&SM_LENGTH=40" + "&SM_URL=" + story.link), {
+        + "&SM_WITH_BREAK=true" + "&SM_LENGTH=40" + "&SM_URL=" + story.getLink()), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -168,13 +144,14 @@ const summarizeStory = async (story) => {
 
         // TODO: replace all double quotes with single quotes 
         const json = await response.json();
-        console.log(json);
         
         if(!("sm_api_error" in json)){
-            story.body = json.sm_api_content;
-            story.title = json.sm_api_title;
-            story.slug = json.sm_api_title.toLowerCase().split(" ").join("-");
-            story.error = false;
+            //story.setContent(json.sm_api_content.split("[BREAK]").join(""));
+            story.setTitle(json.sm_api_title);
+            // TODO: commas and other punctuation in titles included in slug
+            story.setSlug(json.sm_api_title.toLowerCase().split(" ").join("-"));
+            story.setSentences(json.sm_api_content.split("[BREAK]"));
+            story.setError(false);
         }
  
     } catch (error) {
@@ -230,11 +207,14 @@ const thesaurusize = (sourceText) => {
 
 const spinStory = async(story) => {
 
-    story.error = true;
+    story.setError(true);
 
     try {
-        story.body = await spinner(story.body);
-        story.error = false;
+        let body = await spinner(story.getContent());
+        // https://stackoverflow.com/questions/19156148/i-want-to-remove-double-quotes-from-a-string/43220059
+        body = body.replace(/^["'](.+(?=["']$))["']$/, '$1');
+        story.setContent(body);
+        story.setError(false);
     }
     catch(ex){
         console.log(ex);
@@ -284,6 +264,7 @@ const spinner = async(sourceText) => {
     
         // TODO: Account for API credential error
         const json = await response.json();
+        console.log(json);
     
         return json.response;
 
@@ -296,7 +277,7 @@ const saveSpunStoryToSQL = async(storyToSave) => {
 
     try {
     	var result = await mysql.conn.query('insert into spunStories (`guid`, `body`, `error`, `img`, `link`, `pubDate`, `title`) values (?,?,?,?,?,?,?)',
-					    [storyToSave.guid, storyToSave.body, storyToSave.error, storyToSave.img, storyToSave.link, storyToSave.pubDate, storyToSave.title]);
+					    [storyToSave.getGuid(), storyToSave.getContent(), storyToSave.isError(), storyToSave.getImage(), storyToSave.getLink(), storyToSave.getPubDate(), storyToSave.getTitle()]);
 	console.log(result);
     }
     catch (ex) {
@@ -307,7 +288,8 @@ const saveSpunStoryToSQL = async(storyToSave) => {
 
 (async() => {
 
-    let newStory = Story();
+    let newStory = new Story();
+    let indexOfTitle = -1;
 
     try {
 
@@ -318,32 +300,75 @@ const saveSpunStoryToSQL = async(storyToSave) => {
         else {
             newStory = await getOldestStoryFromFirestore();
         }
-        
-        if(!newStory.error && newStory.link && newStory.link.length > 0){
+
+        if(!newStory.isError() && newStory.getLink() != null && newStory.getLink().length > 0){
             newStory = await summarizeStory(newStory);
         }
-
-        if(config.queryUnsplash && !newStory.error && newStory.slug && newStory.slug.length > 0){
-            newStory.img = await image.getImage(newStory.slug.split("-"));
+        
+        if(config.queryUnsplash && !newStory.isError() && newStory.getSlug() != null && newStory.getSlug().length > 0){
+            // TODO: account for commas, colons etc
+            var img = await image.getImage(newStory.getSlug().split("-"))
+            newStory.setImage(img);
         }
 	    else {
-	        newStory.img = 'https://images.unsplash.com/photo-1508921340878-ba53e1f016ec?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=max&w=800&q=80';
+	        newStory.setImage('https://images.unsplash.com/photo-1508921340878-ba53e1f016ec?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=max&w=800&q=80');
 	    }
 
-        if(!newStory.error && newStory.title && newStory.title.length > 0){
-            newStory.title = thesaurusize(newStory.title);
-            //newStory.body = thesaurusize(newStory.body);
-        }
-        
-        if(!newStory.error && newStory.body && newStory.body.length > 0){
-            
-            newStory.tagline = app.getBestSentence(newStory.body);
+        if(!newStory.isError() && newStory.getTitle() != null && newStory.getTitle().length > 0){
 
+            if(newStory.getSentences() != null && newStory.getSentences().length > 0) {
+
+                // Check if title is in first sentence
+                indexOfTitle = newStory.getSentences()[0].indexOf(newStory.getTitle());
+
+                // If not, make it so
+                if(indexOfTitle < 0){
+                    newStory.insertSentence(0, (newStory.getTitle() + "."));
+                    indexOfTitle = 0;
+                }
+
+            }
         }
 
-        if(!newStory.error && newStory.body && newStory.body.length > 0){
+        if(!newStory.isError() && newStory.getSentences() != null && newStory.getSentences().length > 0){
             
+            newStory.generateContentFromSentences(); // still not sold on some of these function names
+                                                     // and which class is responsible for what
+                                                     // TODO: maybe getContent should generate content
+                                                     // if content is empty
             newStory = await spinStory(newStory);
+            
+        }
+
+        if(!newStory.isError() && newStory.getContent() != null && newStory.getContent().length > 0) {
+            // reset sentences
+            newStory.generateSentencesFromContent();
+        }
+
+        if(!newStory.isError() && indexOfTitle >= 0) {
+            // remove first sentence from story
+            var newTitle = newStory.removeSentence(0);
+
+            // if new title == old title
+            // // use thesaurusize
+
+            // assign to title parameter
+            newStory.setTitle(newTitle);
+
+            // Reset content
+            newStory.generateContentFromSentences()
+            
+        }
+        else if (!newStory.isError() && indexOfTitle < 0 && 
+                newStory.getTitle() != null && newStory.getTitle().length > 0){
+            // Shouldn't ever really happen, but just in case...
+            newStory.setTitle(thesaurusize(newStory.getTitle()));
+        }
+
+        if(!newStory.isError() && newStory.getContent() != null && newStory.getContent().length > 0){
+            
+            newStory.getTagline();
+
         }
 
         // TODO: Provide credit in story
@@ -362,13 +387,25 @@ const saveSpunStoryToSQL = async(storyToSave) => {
             }
         */
 
-        if(!newStory.error){
-
-            console.log(newStory);
+        if(!newStory.isError()){
 
             if(!config.useSQL) {
+
+                // Firestore does not support objects with custom prototypes:
+                // https://stackoverflow.com/questions/52221578/firestore-doesnt-support-javascript-objects-with-custom-prototypes
+                var obj = {
+                    "content": newStory.getContent(),
+                    "img": newStory.getImage(),
+                    "link": newStory.getLink(),
+                    "pubDate": newStory.getPubDate(),
+                    "slug": newStory.getSlug(),
+                    "tagline": newStory.getTagline(),
+                    "title": newStory.getTitle(),
+                    "domain": newStory.getDomain()
+                };
+
                 // Populate to firestore db
-                db.collection('spunStories').doc(newStory.guid).set(newStory);
+                db.collection('spunStories').doc(newStory.getGuid()).set(obj);
             } else {
                 await saveSpunStoryToSQL(newStory);
             }
