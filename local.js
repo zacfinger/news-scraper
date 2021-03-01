@@ -47,10 +47,10 @@ try{
     // TODO: Account for multiple stories in <ol> tag in description
     feed.items.forEach(item => {
         var date = new Date(item.pubDate);
-        
+
         // If the news item was published within last 60 minutes
         if (date >= timeToCheck) {
-		
+
             // TODO: Check if item.link contains word in denylist
             (async() => {
                 if(config.useSQL) {

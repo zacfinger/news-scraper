@@ -93,7 +93,13 @@ const getWeather = async () => {
 
         weather.min = Math.round(response.data.daily[0].temp.min);
 
-        weather.error = false;
+	weather.pubDate = new Date();
+
+	weather.error = false;
+	
+	if(!weather.error) {
+		await db.update( 'weather', weather, { "weatherID": 0 } );
+	}
 
     } catch (error) {
         console.log(error);
@@ -105,14 +111,4 @@ const getWeather = async () => {
 
 }
 
-(async () => {
-    
-    var weather = await getWeather();
-    
-    if(!weather.error) {
-        console.log(weather);
-        await db.update( 'weather', weather, { "weatherID": 0 } );
-
-    }
-
-})();
+module.exports.getWeather = getWeather;

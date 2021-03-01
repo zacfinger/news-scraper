@@ -72,10 +72,11 @@ const update = async (tableName, setColumns, whereCondition) => {
         } catch (ex) {
             console.log(ex);
         }
-        finally {
+	// TODO: Move to separate function
+        /*finally {
             if(config.useSQL && mysql.conn && mysql.conn.end) {
                 mysql.conn.end(); }
-        }
+        }*/
     } 
     else {
 
