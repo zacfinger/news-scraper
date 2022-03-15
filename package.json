@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "0.14.28",
+  "version": "0.15.13",
   "description": "Scrapes top news sites",
   "main": "main.js",
   "scripts": {
@@ -20,6 +20,7 @@
   "author": "zacfinger.com",
   "license": "MIT",
   "dependencies": {
+    "async": "^3.2.3",
     "axios": "^0.19.2",
     "cheerio": "^1.0.0-rc.3",
     "cors": "^2.8.5",

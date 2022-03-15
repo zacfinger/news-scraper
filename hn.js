@@ -1,20 +1,7 @@
 const config = require('./config');
 const fs = require('fs');
 const axios = require('axios');
-const admin = require('firebase-admin');
-const app = require('./app');
-
-let serviceAccount = require(config.jsonPath);
-
-// Check if app already initialized
-// https://stackoverflow.com/questions/57763991/initializeapp-when-adding-firebase-to-app-and-to-server
-if (!admin.apps.length){
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-}
-
-let db = admin.firestore();
+const Story = require('./story');
 
 // Get sites
 // https://stackabuse.com/reading-and-writing-json-files-with-node-js/
@@ -34,18 +21,17 @@ let sites = JSON.parse(rawdata);
                 //console.log(story.data.url);
                 //console.log(story.data.title);
                 if (story.data.url != undefined){
-                    if(sites.includes(app.getDomain(story.data.url))){
-                      
-                      let docRef = db.collection('links').doc(story.data.id.toString());
 
-                      let setStory = docRef.set({
-                        title: story.data.title,
-                        url: story.data.url,
-                        id: story.data.id,
-                        time: story.data.time
-                      });
-                      console.log(story.data.id);
-                      console.log(story.data.title);
+                    let s = new Story();
+                    s.setLink(story.data.url);
+                    s.setTitle(story.data.title);
+
+                    if(sites.includes(s.findDomain(story.data.url))){
+                      
+                      // log story in db with certain status
+                      
+                      console.log(s.findDomain(story.data.url) + " - " + story.data.title);
+                      //console.log(story.data.id);
                     }
                 }
                 

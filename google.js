@@ -6,17 +6,8 @@ let Parser = require('rss-parser');
 let parser = new Parser();
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
-const admin = require('firebase-admin');
 const Story = require('./story')
 const image = require('./image');
-
-let serviceAccount = require(config.jsonPath);
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-
-let db = admin.firestore();
  
 // Reads Google News RSS
 // Returns list of stories
@@ -137,15 +128,7 @@ const main = async () => {
 
             headline += currentWord;
 
-            // Save to firestore
-
-            let docRef = db.collection('links').doc();
-
-            let setStory = docRef.set({
-                title: headline,
-                url: href,
-                img: img
-            });
+            // Save to db ...
 
             console.log(headline);
             console.log("--------------------------------");

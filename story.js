@@ -1,20 +1,23 @@
-module.exports = function () {
+module.exports = class Story {
 
-    // Use story objects with members URL, summary etc
-    var link = "";              // Original URL
-    var guid = "";              // Google News GUID
-    var pubDate = new Date();   // Google News pubDate
-    var error = false;          // Error
-    var content = "";           // Body of story
-    var title = "";             // Title of story
-    var sentences = [];         // Array of each sentence 
-                                // in the story as an element
-    var words = {};             // Word bank to store 
-                                // frequency of each word
-    var tagline = "";           // Most valuable sentence in story
-    var slug = "";              // Slug of article
-    var img = "";               // Image URL
-    var domain = "";            // Domain of story
+    constructor()
+    {
+        // Use story objects with members URL, summary etc
+        this.link = "";              // Original URL
+        this.guid = "";              // Google News GUID
+        this.pubDate = new Date();   // Google News pubDate
+        this.error = false;          // Error
+        this.content = "";           // Body of story
+        this.title = "";             // Title of story
+        this.sentences = [];         // Array of each sentence 
+                                    // in the story as an element
+        this.words = {};             // Word bank to store 
+                                    // frequency of each word
+        this.tagline = "";           // Most valuable sentence in story
+        this.slug = "";              // Slug of article
+        this.img = "";               // Image URL
+        this.domain = "";            // Domain of story
+    }
 
     ///////////////////////////////////////////////////////
     // Resources:
@@ -25,7 +28,7 @@ module.exports = function () {
     // Receives as an argument any URL string in any format
     // Returns a stripped domain of the format "domain.com"
     // If no argument is provided the story link member will be used
-    const findDomain = (url = link) => {
+    findDomain(url) {
 
         var n = url.indexOf("//");
 
@@ -42,33 +45,33 @@ module.exports = function () {
                 url = url.substring(0, n);
         }
 
-        domain = url;
+        return url;
     }
 
     // Sets words member to object with keys for each word in content member
     // The value of each key is the count of the word 
-    const findMostCommonWords = () => {
+    findMostCommonWords() {
 
-        words = {};
+        this.words = {};
 
-        if(content != null && content.length > 0){
+        if(this.content != null && this.content.length > 0){
 
-            content.split(" ").map((word) => {
+            this.content.split(" ").map((word) => {
 
                 // Count most common words, accounting for caps/lowercase
                 // https://stackoverflow.com/questions/6565333/using-javascript-to-find-most-common-words-in-string
                 // TODO: Need to account for possessive, i.e. "Trump's" 
                 // TODO: Need to account for punctuation i.e. "COVID, vs. COVID"
                 // TODO: Use POS to exclude articles, pronouns, prepositions, words like "is" and "and"
-                words["_" + word.toLowerCase()] = (words["_" + word.toLowerCase()] || 0) + 1;
+                this.words["_" + word.toLowerCase()] = (this.words["_" + word.toLowerCase()] || 0) + 1;
 
             });
 
-        } else if (sentences != null && sentences.length > 0) {
-            sentences.forEach((sentence) => {
+        } else if (this.sentences != null && this.sentences.length > 0) {
+            this.sentences.forEach((sentence) => {
                 sentence.split(" ").map((word) => {
                     // TODO: Opportunity to optimize
-                    words["_" + word.toLowerCase()] = (words["_" + word.toLowerCase()] || 0) + 1;
+                    this.words["_" + word.toLowerCase()] = (this.words["_" + word.toLowerCase()] || 0) + 1;
         
                 });
             });
@@ -78,15 +81,15 @@ module.exports = function () {
     // Sets tagline to "best" sentece based on which 
     // has the most amount of "high value" words
     // as determined by word frequency
-    const findBestSentence = () => {
+    findBestSentence() {
 
-        if(!words || Object.keys(words).length == 0) {
-            findMostCommonWords();
+        if(!this.words || Object.keys(this.words).length == 0) {
+            this.findMostCommonWords();
         }
 
         //console.log(words);
 
-        if(!sentences || sentences.length == 0) {
+        if(!this.sentences || this.sentences.length == 0) {
 
             this.generateSentencesFromContent();
 
@@ -94,20 +97,20 @@ module.exports = function () {
 
         let rankings = {};
 
-        sentences.forEach((sentence) => {
+        this.sentences.forEach((sentence) => {
 
             sentence = sentence.trim();
 
             let points = 0;
             
             sentence.split(" ").map((word) => {
-                let temp = words["_" + word.toLowerCase()]; 
+                let temp = this.words["_" + word.toLowerCase()]; 
 
                 // Protect against words not found because 
                 // sentence boundary unclear, usually acronyms or quotes
                 if(isNaN(temp)){
-                    console.log("Word not found in wordbank...")
-                    console.log(word);
+                    //console.log("Word not found in wordbank...")
+                    //console.log(word);
                     temp = 0;
                 }
 
@@ -117,17 +120,17 @@ module.exports = function () {
             rankings[sentence] = points;
         })
 
-        console.log(rankings);
+        //console.log(rankings);
         
         // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
         let keysSorted = Object.keys(rankings).sort(function(a,b){return rankings[b]-rankings[a]})
 
-        tagline = keysSorted[0];
+        this.tagline = keysSorted[0];
     }
 
-    this.generateSentencesFromContent = () => {
-        if(content != null && content.length > 0) {
-            sentences = [];
+    generateSentencesFromContent() {
+        if(this.content != null && this.content.length > 0) {
+            this.sentences = [];
             // Split source text into array of sentences
             // TODO: Sentence splitting method impacts accuracy of sentence rankings
             //       and can mess up formatting of sentences
@@ -144,141 +147,141 @@ module.exports = function () {
                 return g1 ? g1 : g2+"\r";
               });
 
-            sentences = result.split("\r");
+              this.sentences = result.split("\r");
         }
     }
 
-    this.generateContentFromSentences = () => {
-        if(sentences != null && sentences.length > 0) {
-            this.setContent(sentences.join(" "));
+    generateContentFromSentences() {
+        if(this.sentences != null && this.sentences.length > 0) {
+            this.setContent(this.sentences.join(" "));
         }
         
     }
 
-    this.insertSentence = (index, sentence) => {
-        if(sentences != null && sentences.length > index) {
+    insertSentence(index, sentence) {
+        if(this.sentences != null && this.sentences.length > index) {
             // https://stackoverflow.com/questions/586182/how-to-insert-an-item-into-an-array-at-a-specific-index-javascript
-            sentences.splice(index, 0, sentence);
+            this.sentences.splice(index, 0, sentence);
         }
     } 
 
-    this.removeSentence = (index) => {
+    removeSentence(index) {
         
         var sentence = "";
 
-        if(sentences != null && sentences.length > index) {
+        if(this.sentences != null && this.sentences.length > index) {
             // TODO: consider using "Shift"
             // https://www.w3schools.com/jsref/jsref_shift.asp
-            sentence = sentences[index];
-            sentences.splice(index, 1);
+            sentence = this.sentences[index];
+            this.sentences.splice(index, 1);
         }
 
         return sentence;
     }
 
-    this.setError = (bool) => {
-        error = bool;
+    setError(bool) {
+        this.error = bool;
     }
 
-    this.isError = () => {
-        return error;
+    isError() {
+        return this.error;
     }
 
-    this.setLink = (string) => {
-        link = string;
+    setLink(string) {
+        this.link = string;
     };
 
-    this.getLink = () => {
-        return link;
+    getLink() {
+        return this.link;
     }
 
-    this.setGuid = (string) => {
-        guid = string;
+    setGuid(string) {
+        this.guid = string;
     }
 
-    this.getGuid = () => {
-        return guid;
+    getGuid() {
+        return this.guid;
     }
 
-    this.setPubDate = (date) => {
-        pubDate = date;
+    setPubDate(date) {
+        this.pubDate = date;
     }
 
-    this.getPubDate = () => {
-        return pubDate;
+    getPubDate() {
+        return this.pubDate;
     }
 
-    this.setContent = (string) => {
-        content = string;
+    setContent(string) {
+        this.content = string;
     }
 
-    this.getContent = () => {
-        return content;
+    getContent() {
+        return this.content;
     }
 
-    this.setTitle = (string) => {
-        title = string;
+    setTitle(string) {
+        this.title = string;
     }
 
-    this.getTitle = () => {
+    getTitle() {
         return title;    
     }
 
-    this.setSlug = (string) => {
-        slug = string;
+    setSlug(string) {
+        slug = this.string;
     }
 
-    this.getSlug = () => {
-        return slug;
+    getSlug() {
+        return this.slug;
     }
 
-    this.setSentences = (array) => {
+    setSentences(array) {
 
         for(var i = 0; i < array.length; i++){
             array[i] = array[i].trim();
         }
 
-        sentences = array;
+        this.sentences = array;
     }
 
-    this.getSentences = () => {
-        return sentences;
+    getSentences() {
+        return this.sentences;
     }
 
-    this.setImage = (string) => {
-        img = string;
+    setImage(string) {
+        this.img = string;
     }
 
-    this.getImage = () => {
-        return img;
+    getImage() {
+        return this.img;
     }
 
-    this.setTagline = (string) => {
-        tagline = string;
+    setTagline(string) {
+        this.tagline = string;
     }
 
-    this.getTagline = () => {
-        if(!tagline || tagline.length == 0) {
-            findBestSentence();
+    getTagline() {
+        if(!this.tagline || this.tagline.length == 0) {
+            this.findBestSentence();
         }
-        return tagline;
+        return this.tagline;
     }
 
-    this.getDomain = () => {
+    getDomain() {
         
-        if(!domain || domain.length == 0){
-            findDomain();
+        if(!this.domain || this.domain.length == 0){
+            this.findDomain();
         }
-        return domain;
+        return this.domain;
     }
 
-    this.getMostCommonWords = () => {
+    getMostCommonWords() {
 
-        if(!words || Object.keys(words).length == 0){
-            findMostCommonWords();
+        if(!this.words || Object.keys(this.words).length == 0){
+            this.findMostCommonWords();
         }
     
-        return words;
+        return this.words;
     }
     
     
