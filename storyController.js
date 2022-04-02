@@ -3,14 +3,6 @@
 const Story = require('./story');
 const db = require('./db');
 
-const getStoryId = (pubDate) => {
-    // convert to unix time
-    var time = (pubDate.valueOf() / 1000);
-    // use equation derived from linear regression of IDs against unix times
-    var id = -37493680.37 + (0.05008 * time);
-    return Math.round(id);
-}
-
 const findMostCommonWords = (sentences) => {
 
     let words = {};
@@ -79,8 +71,17 @@ const findBestSentence = (sentences, words) => {
 
     }
 
-    
     return sentences[idxOfMaxSentenceLength];
+}
+
+// Generate story Id based on datetime of story
+const getStoryId = (pubDate) => {
+    // convert to unix time
+    let time = (pubDate.valueOf() / 1000);
+    // Derived from finding linear regression curve of datetime 
+    // as a function of wfxg.com story Id # (y) in day of year 2020 (x) 
+    let id = -37493680.37 + (0.05008 * time);
+    return Math.round(id);
 }
 
 const insertStory = async (story) => {
@@ -99,3 +100,4 @@ const insertStory = async (story) => {
 
 module.exports.findMostCommonWords = findMostCommonWords;
 module.exports.findBestSentence = findBestSentence;
+module.exports.getStoryId = getStoryId;
