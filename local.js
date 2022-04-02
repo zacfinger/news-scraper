@@ -10,6 +10,14 @@
 // Load config settings
 const config = require('./config');
 
+// file system
+const fs = require('fs');
+
+// create stream for logs
+// source: https://stackoverflow.com/questions/3459476/how-to-append-to-a-file-in-node/43370201#43370201
+// accessed: 2022-04-01
+var stream = fs.createWriteStream("./logs/" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
+
 // Require RSS dependency
 let Parser = require('rss-parser');
 let parser = new Parser();
@@ -34,6 +42,9 @@ let statusEnum = config.statusEnum;
 // Main
 (async() => {
 
+    // log everything
+    stream.write("google.js main subroutine initialized" + "\n");
+
     // Only save stories returned from the Google RSS feed after dateOfLastStory
     // Default date Nullember 1, 2022 is used if no data exists in Story table
     var dateOfLastStory = new Date(2022,0,1);
@@ -42,6 +53,8 @@ let statusEnum = config.statusEnum;
     {
         // Get datetime of most recent entry in stories if exists
         let selectMaxDateTimeFromStory = 'select max(isoDate) as maxDateTime from Story';
+
+        stream.write("google.js querying database of max(isoDate) from Story\n");
         
         // Make the query
         var rows = await mysql.conn.query(selectMaxDateTimeFromStory);
@@ -51,15 +64,19 @@ let statusEnum = config.statusEnum;
         if(maxDateTime != null)
         {
             dateOfLastStory = maxDateTime;
+            stream.write("google.js query was successful\n");
         }
 
     } 
     catch (ex)
     {
+        stream.write("google.js exception\n");
         console.log(ex);
     }
     
     try{
+
+        stream.write("google.js querying Google News RSS for latest headlines\n");
 
         // Pull local headlines
         let feed = await parser.parseURL('https://news.google.com/rss/search?q=' + config.locale);
@@ -70,11 +87,15 @@ let statusEnum = config.statusEnum;
 
             let isoDate = new Date(item.isoDate);
 
+            stream.write("google.js calculating story id for story\n");
+
             var id = getStoryId(isoDate);
 
             // If the news item was published after the last story
             // Copy information to database
             if (isoDate > dateOfLastStory) {
+
+                stream.write("google.js creating transaction to insert story\n");
 
                 await mysql.conn.beginTransaction();
 
@@ -94,7 +115,6 @@ let statusEnum = config.statusEnum;
                                 'insert into Story (`id`, `status`, `link`, `isoDate`) values (?, ?, ?, ?)',
                                 [id, statusEnum.initial, item.link, isoDate]);
                             inserted = true;
-                            console.log(result);
                         }
                         catch(ex) 
                         {
@@ -108,6 +128,10 @@ let statusEnum = config.statusEnum;
                             }
                             else
                             {
+                                stream.write("google.js other exception during story insert: \n");
+                                stream.write(ex.message);
+                                stream.write(ex.stack);
+
                                 // TODO: Account for other exceptions besides duplicate primary key
                                 console.log(ex);
                                 error = true;
@@ -117,6 +141,8 @@ let statusEnum = config.statusEnum;
 
                     if(inserted)
                     {
+                        stream.write("google.js preparing to insert into storyContent\n");
+
                         // record 
                         let result = await mysql.conn.query(
                             'insert into storyContent (`id`, `gn_rss_title`, `gn_rss_guid`) values (?, ?, ?)',
@@ -124,9 +150,12 @@ let statusEnum = config.statusEnum;
                         console.log(result);
 
                         await mysql.conn.commit();
+
+                        stream.write("google.js transaction successfully committed");
                     }
                     else
                     {
+                        stream.write("google.js rolling back transaction to insert story");
                         await mysql.conn.rollback();
                     }
 
