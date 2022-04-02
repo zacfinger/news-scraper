@@ -16,7 +16,7 @@ const fs = require('fs');
 // create stream for logs
 // source: https://stackoverflow.com/questions/3459476/how-to-append-to-a-file-in-node/43370201#43370201
 // accessed: 2022-04-01
-var stream = fs.createWriteStream("./logs/" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
+var stream = fs.createWriteStream("./logs/gg-" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
 
 // Require RSS dependency
 let Parser = require('rss-parser');
@@ -43,7 +43,7 @@ let statusEnum = config.statusEnum;
 (async() => {
 
     // log everything
-    stream.write("google.js main subroutine initialized" + "\n");
+    stream.write("main subroutine initialized" + "\n");
 
     // Only save stories returned from the Google RSS feed after dateOfLastStory
     // Default date Nullember 1, 2022 is used if no data exists in Story table
@@ -54,7 +54,7 @@ let statusEnum = config.statusEnum;
         // Get datetime of most recent entry in stories if exists
         let selectMaxDateTimeFromStory = 'select max(isoDate) as maxDateTime from Story';
 
-        stream.write("google.js querying database of max(isoDate) from Story\n");
+        stream.write("querying database of max(isoDate) from Story\n");
         
         // Make the query
         var rows = await mysql.conn.query(selectMaxDateTimeFromStory);
@@ -64,19 +64,19 @@ let statusEnum = config.statusEnum;
         if(maxDateTime != null)
         {
             dateOfLastStory = maxDateTime;
-            stream.write("google.js query was successful\n");
+            stream.write("query was successful\n");
         }
 
     } 
     catch (ex)
     {
-        stream.write("google.js exception\n");
+        stream.write("exception\n");
         console.log(ex);
     }
     
     try{
 
-        stream.write("google.js querying Google News RSS for latest headlines\n");
+        stream.write("querying Google News RSS for latest headlines\n");
 
         // Pull local headlines
         let feed = await parser.parseURL('https://news.google.com/rss/search?q=' + config.locale);
@@ -93,7 +93,7 @@ let statusEnum = config.statusEnum;
             // Copy information to database
             if (isoDate > dateOfLastStory) {
 
-                stream.write("google.js creating transaction to insert story\n");
+                stream.write("creating transaction to insert story\n");
 
                 await mysql.conn.beginTransaction();
 
@@ -126,7 +126,7 @@ let statusEnum = config.statusEnum;
                             }
                             else
                             {
-                                stream.write("google.js other exception during story insert: \n");
+                                stream.write("other exception during story insert: \n");
                                 stream.write(ex.message);
                                 stream.write(ex.stack);
 
@@ -139,7 +139,7 @@ let statusEnum = config.statusEnum;
 
                     if(inserted)
                     {
-                        stream.write("google.js preparing to insert into storyContent\n");
+                        stream.write("preparing to insert into storyContent\n");
 
                         // record 
                         let result = await mysql.conn.query(
@@ -149,17 +149,17 @@ let statusEnum = config.statusEnum;
 
                         await mysql.conn.commit();
 
-                        stream.write("google.js transaction successfully committed");
+                        stream.write("transaction successfully committed");
                     }
                     else
                     {
-                        stream.write("google.js rolling back transaction to because story insert failed before storycontent insert");
+                        stream.write("rolling back transaction to because story insert failed before storycontent insert");
                         await mysql.conn.rollback();
                     }
 
                 } catch (ex)
                 {
-                    stream.write("google.js other exception during transaction: \n");
+                    stream.write("other exception during transaction: \n");
                     stream.write(ex.message);
                     stream.write(ex.stack);
                     await mysql.conn.rollback();

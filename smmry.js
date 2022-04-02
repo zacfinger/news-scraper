@@ -5,13 +5,13 @@ const mysql = require('./dbcon.js'); // mysql object
 const fs = require('fs');
 
 // create stream for logs
-var stream = fs.createWriteStream("./logs/" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
+var stream = fs.createWriteStream("./logs/smmry-" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
 
 let statusEnum = config.statusEnum;
 
 (async() => {
 
-    stream.write("smmry.js Beginning transaction for storyContent update");
+    stream.write("Beginning transaction for storyContent update");
 
     await mysql.conn.beginTransaction();
 
@@ -20,7 +20,7 @@ let statusEnum = config.statusEnum;
         // retrieve oldest story with status = 1
         let selectOldestStoryStatement = 'select * from Story where status = ? order by id asc limit 1';
             
-        stream.write("smmry.js querying oldest story without being processed by SMMRY API");
+        stream.write("querying oldest story without being processed by SMMRY API");
 
         // Make the query
         var rows = await mysql.conn.query(selectOldestStoryStatement, [statusEnum.initial]);
@@ -32,7 +32,7 @@ let statusEnum = config.statusEnum;
 
             console.log(link);
 
-            stream.write("smmry.js querying oldest story remaining to be processed by SMMRY API");
+            stream.write("querying oldest story remaining to be processed by SMMRY API");
 
             // query API web service
             const response = await fetch(("https://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
@@ -50,7 +50,7 @@ let statusEnum = config.statusEnum;
             
             if(!("sm_api_error" in json)){
                 // TODO: account for other errors such as 404 etc
-                stream.write("smmry.js summary retrieved, inserting into storyContent and updating Story");
+                stream.write("summary retrieved, inserting into storyContent and updating Story");
                 
                 // update storyContent 
                 let sm_api_content = json.sm_api_content;
@@ -67,7 +67,7 @@ let statusEnum = config.statusEnum;
 
                 await mysql.conn.query( updateStoryWithNewStatus, [statusEnum.smmry, id] );
 
-                stream.write("smmry.js Story and storyContent inserts successful");
+                stream.write("Story and storyContent inserts successful");
             }
             else 
             {
@@ -76,7 +76,7 @@ let statusEnum = config.statusEnum;
 
                 await mysql.conn.query( updateStoryWithErroStatusStatement, [statusEnum.smmryError, id] );
 
-                stream.write("smmry.js SMMRY API error recorded in Story table");
+                stream.write("SMMRY API error recorded in Story table");
 
             }
 
@@ -88,14 +88,14 @@ let statusEnum = config.statusEnum;
     }
     catch (ex)
     {
-        stream.write("smmry.js other exception during story insert: \n");
+        stream.write("other exception during story insert: \n");
         stream.write(ex.message);
         stream.write(ex.stack);
 
         console.log(ex);
         await mysql.conn.rollback();
 
-        stream.write("smmry.js Story and storyContent inserts successful");
+        stream.write("Story and storyContent inserts successful");
     }
     finally {
         if(mysql.conn && mysql.conn.end) {

@@ -50,83 +50,18 @@ module.exports = class Story {
 
     // Sets words member to object with keys for each word in content member
     // The value of each key is the count of the word 
-    findMostCommonWords() {
+    //findMostCommonWords() {
 
-        this.words = {};
-
-        if(this.content != null && this.content.length > 0){
-
-            this.content.split(" ").map((word) => {
-
-                // Count most common words, accounting for caps/lowercase
-                // https://stackoverflow.com/questions/6565333/using-javascript-to-find-most-common-words-in-string
-                // TODO: Need to account for possessive, i.e. "Trump's" 
-                // TODO: Need to account for punctuation i.e. "COVID, vs. COVID"
-                // TODO: Use POS to exclude articles, pronouns, prepositions, words like "is" and "and"
-                this.words["_" + word.toLowerCase()] = (this.words["_" + word.toLowerCase()] || 0) + 1;
-
-            });
-
-        } else if (this.sentences != null && this.sentences.length > 0) {
-            this.sentences.forEach((sentence) => {
-                sentence.split(" ").map((word) => {
-                    // TODO: Opportunity to optimize
-                    this.words["_" + word.toLowerCase()] = (this.words["_" + word.toLowerCase()] || 0) + 1;
         
-                });
-            });
-        }
-    }
+    //}
 
     // Sets tagline to "best" sentece based on which 
     // has the most amount of "high value" words
     // as determined by word frequency
-    findBestSentence() {
+    //findBestSentence() {
 
-        if(!this.words || Object.keys(this.words).length == 0) {
-            this.findMostCommonWords();
-        }
-
-        //console.log(words);
-
-        if(!this.sentences || this.sentences.length == 0) {
-
-            this.generateSentencesFromContent();
-
-        }
-
-        let rankings = {};
-
-        this.sentences.forEach((sentence) => {
-
-            sentence = sentence.trim();
-
-            let points = 0;
-            
-            sentence.split(" ").map((word) => {
-                let temp = this.words["_" + word.toLowerCase()]; 
-
-                // Protect against words not found because 
-                // sentence boundary unclear, usually acronyms or quotes
-                if(isNaN(temp)){
-                    //console.log("Word not found in wordbank...")
-                    //console.log(word);
-                    temp = 0;
-                }
-
-                points += temp;
-            });
-
-            rankings[sentence] = points;
-        })
-
-        //console.log(rankings);
         
-        // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
-        let keysSorted = Object.keys(rankings).sort(function(a,b){return rankings[b]-rankings[a]})
-
-        this.tagline = keysSorted[0];
-    }
+    //}
 
     generateSentencesFromContent() {
         if(this.content != null && this.content.length > 0) {
