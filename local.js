@@ -87,8 +87,6 @@ let statusEnum = config.statusEnum;
 
             let isoDate = new Date(item.isoDate);
 
-            stream.write("google.js calculating story id for story\n");
-
             var id = getStoryId(isoDate);
 
             // If the news item was published after the last story
@@ -155,12 +153,15 @@ let statusEnum = config.statusEnum;
                     }
                     else
                     {
-                        stream.write("google.js rolling back transaction to insert story");
+                        stream.write("google.js rolling back transaction to because story insert failed before storycontent insert");
                         await mysql.conn.rollback();
                     }
 
                 } catch (ex)
                 {
+                    stream.write("google.js other exception during transaction: \n");
+                    stream.write(ex.message);
+                    stream.write(ex.stack);
                     await mysql.conn.rollback();
                 }
 
@@ -170,7 +171,10 @@ let statusEnum = config.statusEnum;
     finally
     {
         if(mysql.conn && mysql.conn.end) {
-        mysql.conn.end(); }
+            mysql.conn.end();
+        }
+
+        stream.end("Process completed");
     }
     
 })();
