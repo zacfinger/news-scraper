@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const config = require('./config'); // Load config settings
 const mysql = require('./dbcon.js'); // mysql object
 const fs = require('fs');
+const storyController = require('./storyController.js');
 
 // create stream for logs
 var stream = fs.createWriteStream("./logs/smmry-" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
@@ -11,7 +12,7 @@ let statusEnum = config.statusEnum;
 
 (async() => {
 
-    stream.write("Beginning transaction for storyContent update");
+    stream.write("Beginning transaction for storyContent update\n");
 
     await mysql.conn.beginTransaction();
 
@@ -20,7 +21,7 @@ let statusEnum = config.statusEnum;
         // retrieve oldest story with status = 1
         let selectOldestStoryStatement = 'select * from Story where status = ? order by id asc limit 1';
             
-        stream.write("querying oldest story without being processed by SMMRY API");
+        stream.write("querying oldest story without being processed by SMMRY API\n");
 
         // Make the query
         var rows = await mysql.conn.query(selectOldestStoryStatement, [statusEnum.initial]);
@@ -30,9 +31,7 @@ let statusEnum = config.statusEnum;
             var id = rows[0].id;
             var link = rows[0].link;
 
-            console.log(link);
-
-            stream.write("querying oldest story remaining to be processed by SMMRY API");
+            stream.write("querying oldest story remaining to be processed by SMMRY API\n");
 
             // query API web service
             const response = await fetch(("https://api.smmry.com/&SM_API_KEY=" + config.smmry_key 
@@ -46,28 +45,37 @@ let statusEnum = config.statusEnum;
             // TODO: replace all double quotes with single quotes 
             let json = await response.json();
 
-            console.log(json);
-            
             if(!("sm_api_error" in json)){
                 // TODO: account for other errors such as 404 etc
-                stream.write("summary retrieved, inserting into storyContent and updating Story");
+                stream.write("summary retrieved, inserting into storyContent and updating Story\n");
                 
-                // update storyContent 
+                // retrieve JSON values for storyContent 
                 let sm_api_content = json.sm_api_content;
                 let sm_api_character_count = json.sm_api_character_count;
                 let sm_api_content_reduced = parseInt(json.sm_api_content_reduced);
                 let sm_api_title = json.sm_api_title;
 
-                let updateStoryContentStatement = 'update storyContent set sm_api_content = ?, sm_api_character_count = ?, sm_api_content_reduced = ?, sm_api_title = ? where id = ?';
+                // get sm_api_content as array of sentences
+                let sentences = sm_api_content.split("[BREAK]").map(element => {
+                    return element.trim();
+                });
+
+                // find most common words using storyController i guess
+                const sc = storyController;
+                let words = sc.findMostCommonWords(sentences);
+                let tagline = sc.findBestSentence(sentences, words);
+
+                // update data in db
+                let updateStoryContentStatement = 'update storyContent set sm_api_content = ?, sm_api_character_count = ?, sm_api_content_reduced = ?, sm_api_title = ?, tagline = ? where id = ?';
             
-                await mysql.conn.query( updateStoryContentStatement, [sm_api_content, sm_api_character_count, sm_api_content_reduced, sm_api_title, id] );
+                await mysql.conn.query( updateStoryContentStatement, [sm_api_content, sm_api_character_count, sm_api_content_reduced, sm_api_title, tagline, id] );
 
                 // update Story with new status
                 let updateStoryWithNewStatus = 'update Story set status = ? where id = ?';
 
                 await mysql.conn.query( updateStoryWithNewStatus, [statusEnum.smmry, id] );
 
-                stream.write("Story and storyContent inserts successful");
+                stream.write("Story and storyContent inserts successful\n");
             }
             else 
             {
@@ -76,7 +84,7 @@ let statusEnum = config.statusEnum;
 
                 await mysql.conn.query( updateStoryWithErroStatusStatement, [statusEnum.smmryError, id] );
 
-                stream.write("SMMRY API error recorded in Story table");
+                stream.write("SMMRY API error recorded in Story table\n");
 
             }
 
@@ -84,7 +92,7 @@ let statusEnum = config.statusEnum;
 
         await mysql.conn.commit();
 
-        stream.write("SQL transaction committed");
+        stream.write("SQL transaction committed\n");
     }
     catch (ex)
     {
@@ -95,13 +103,13 @@ let statusEnum = config.statusEnum;
         console.log(ex);
         await mysql.conn.rollback();
 
-        stream.write("Story and storyContent inserts successful");
+        stream.write("Story and storyContent inserts successful\n");
     }
     finally {
         if(mysql.conn && mysql.conn.end) {
             mysql.conn.end(); }
 
-        stream.end("Process completed");
+        stream.end("Process completed\n");
     }
 
 })();

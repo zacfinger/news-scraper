@@ -33,7 +33,7 @@ const getImage = async (sentence) => {
 
         console.log(request);
 
-        stream.write("image.js querying Unsplash web service");
+        stream.write("image.js querying Unsplash web service\n");
 
         const response = await axios.get(request);
 
@@ -42,8 +42,8 @@ const getImage = async (sentence) => {
         return response.data.results[0].urls.small;
 
     } catch (error) {
-        stream.write("image.js other exception during Unsplash query");
-        stream.write(error.message);
+        stream.write("image.js other exception during Unsplash query\n");
+        stream.write(error.message + "\n");
         stream.write(error.stack);
 
         console.log(error);
@@ -67,7 +67,7 @@ let statusEnum = config.statusEnum;
 
     try {
 
-        stream.write("querying for oldest SMMRY/GPT processed story without an img value");
+        stream.write("querying for oldest SMMRY/GPT processed story without an img value\n");
 
         var rows = await mysql.conn.query(selectOldestStoryStatement, [statusEnum.smmry, statusEnum.gpt]);
 
@@ -75,30 +75,16 @@ let statusEnum = config.statusEnum;
         var id = rows[0].id;
         var sm_api_title = rows[0].sm_api_title;
 
-        stream.write("retrieved sm_api_title from db");
-
-        // get sm_api_content as array of sentences
-        //var sm_api_content = rows[0].sm_api_content.split("[BREAK]").map(element => {
-        //    return element.trim();
-        //});
-
-        // find most common words using storyController i guess
-        //const sc = storyController;
-        //let words = sc.findMostCommonWords(sm_api_content);
-        //let tagline = sc.findBestSentence(sm_api_content, words);
-
-        // Sory by word frequency
-        // https://stackoverflow.com/questions/1069666/sorting-object-property-by-values
-        // let wordsSorted = Object.keys(words).sort(function(a,b){return words[b]-words[a]});
+        stream.write("retrieved sm_api_title from db\n");
 
         //console.log(wordsSorted);
 
-        stream.write("querying UNSPLASH image web service");
+        stream.write("querying UNSPLASH image web service\n");
 
         // get image
         let img = await getImage(sm_api_title);
         
-        stream.write("about to update storycontent table with img value");
+        stream.write("about to update storycontent table with img value\n");
 
         // update storycontent
         let updateStoryContentWithImgStatement = 'update storyContent set img = ? where id = ?';
@@ -113,7 +99,7 @@ let statusEnum = config.statusEnum;
         stream.write(exception.message + "\n");
         stream.write(exception.stack+ "\n");
 
-        stream.write("rolling back sql transaction");
+        stream.write("rolling back sql transaction\n");
 
         await mysql.conn.rollback();
 
@@ -123,7 +109,7 @@ let statusEnum = config.statusEnum;
         if(mysql.conn && mysql.conn.end) {
             mysql.conn.end(); }
 
-        stream.end("Process completed");
+        stream.end("Process completed\n");
     }
     
     
