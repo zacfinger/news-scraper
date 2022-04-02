@@ -29,7 +29,7 @@ const getStoryId = (pubDate) => {
 }
 
 // Defined in table news_db.Status
-let initialStatusOfStory = 1;
+let statusEnum = config.statusEnum;
 
 // Main
 (async() => {
@@ -41,10 +41,10 @@ let initialStatusOfStory = 1;
     try 
     {
         // Get datetime of most recent entry in stories if exists
-        let selectMaxDateTimeFromStory = 'select max(isoDate) as maxDateTime from Story where status = ?';
+        let selectMaxDateTimeFromStory = 'select max(isoDate) as maxDateTime from Story';
         
         // Make the query
-        var rows = await mysql.conn.query(selectMaxDateTimeFromStory, [initialStatusOfStory]);
+        var rows = await mysql.conn.query(selectMaxDateTimeFromStory);
 
         var maxDateTime = rows[0]['maxDateTime'];
 
@@ -92,7 +92,7 @@ let initialStatusOfStory = 1;
                         {		
                             let result = await mysql.conn.query(
                                 'insert into Story (`id`, `status`, `link`, `isoDate`) values (?, ?, ?, ?)',
-                                [id, 1, item.link, isoDate]);
+                                [id, statusEnum.initial, item.link, isoDate]);
                             inserted = true;
                             console.log(result);
                         }
