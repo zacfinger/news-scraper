@@ -5,7 +5,7 @@ const mysql = require('./dbcon.js'); // mysql object
 const storyController = require('./storyController.js');
 
 // create stream for logs
-var stream = fs.createWriteStream("./logs/img-" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
+var stream = fs.createWriteStream(config.pwd + "/logs/img-" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
 
 const url = "https://api.unsplash.com/search/photos?client_id=";
 
@@ -31,13 +31,9 @@ const getImage = async (sentence) => {
 
         });
 
-        console.log(request);
-
         stream.write("image.js querying Unsplash web service\n");
 
         const response = await axios.get(request);
-
-        console.log(response.data);
         
         return response.data.results[0].urls.small;
 
@@ -59,7 +55,7 @@ let statusEnum = config.statusEnum;
     stream.write("initiating process\n");
 
     // get oldest story with status = 2 or status = 4 and img = null
-    let selectOldestStoryStatement = 'select Story.id, storyContent.sm_api_title from Story join storyContent on Story.id = storyContent.id where (status = ? or status = ?) and img is null order by Story.id asc limit 1';
+    let selectOldestStoryStatement = 'select Story.id, storyContent.sm_api_title from Story join storyContent on Story.id = storyContent.id where status = ? and img is null order by Story.id asc limit 1';
     
     stream.write("creating transaction to retrieve story and update with image\n");
 
@@ -69,7 +65,7 @@ let statusEnum = config.statusEnum;
 
         stream.write("querying for oldest SMMRY/GPT processed story without an img value\n");
 
-        var rows = await mysql.conn.query(selectOldestStoryStatement, [statusEnum.smmry, statusEnum.gpt]);
+        var rows = await mysql.conn.query(selectOldestStoryStatement, [statusEnum.gpt]);
 
         // get title and id
         var id = rows[0].id;

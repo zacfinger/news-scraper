@@ -1,3 +1,6 @@
+// smmry.js
+// run chmod +x /path/to/smmry.js to make the script executable by cron
+
 // Require dependencies
 const fetch = require("node-fetch");
 const config = require('./config'); // Load config settings
@@ -6,7 +9,7 @@ const fs = require('fs');
 const storyController = require('./storyController.js');
 
 // create stream for logs
-var stream = fs.createWriteStream("./logs/smmry-" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
+var stream = fs.createWriteStream(config.pwd + "/logs/smmry-" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
 
 let statusEnum = config.statusEnum;
 
@@ -79,6 +82,9 @@ let statusEnum = config.statusEnum;
             }
             else 
             {
+                stream.write("received: " + json);
+                console.log(json);
+
                 // update Story table with error status
                 let updateStoryWithErroStatusStatement = 'update Story set status = ? where id = ?';
 

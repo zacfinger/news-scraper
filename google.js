@@ -17,13 +17,13 @@ const storyController = require('./storyController.js');
 let Parser = require('rss-parser');
 let parser = new Parser();
 
+// Load config settings
+const config = require('./config');
+
 // create stream for logs
 // source: https://stackoverflow.com/questions/3459476/how-to-append-to-a-file-in-node/43370201#43370201
 // accessed: 2022-04-01
-var stream = fs.createWriteStream("./logs/gg-" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
-
-// Load config settings
-const config = require('./config');
+var stream = fs.createWriteStream(config.pwd + "/logs/gg-" + new Date().toISOString().substring(0, 10) + ".txt", {flags:'a'});
 
 // Defined in table news_db.Status
 let statusEnum = config.statusEnum;
@@ -269,7 +269,7 @@ const main = async () => {
 
                         await mysql.conn.commit();
 
-                        stream.write("transaction successfully committed");
+                        stream.write("transaction successfully committed\n");
                     }
                     else
                     {
@@ -279,13 +279,12 @@ const main = async () => {
 
                 } catch (ex)
                 {
-                    stream.write("other exception during transaction: \n");
+                    stream.write("other exception during story/storyContent transaction: \n");
                     stream.write(ex.message);
                     stream.write(ex.stack);
+                    
                     await mysql.conn.rollback();
                 }
-
-                break;
             }
         }
     }

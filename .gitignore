@@ -1,3 +1,4 @@
+cron.*
 config.js
 node_modules
 output.json
