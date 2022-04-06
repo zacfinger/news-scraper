@@ -67,27 +67,34 @@ let statusEnum = config.statusEnum;
 
         var rows = await mysql.conn.query(selectOldestStoryStatement, [statusEnum.gpt]);
 
-        // get title and id
-        var id = rows[0].id;
-        var sm_api_title = rows[0].sm_api_title;
+        if(rows.length == 1)
+        {
+            // get title and id
+            var id = rows[0].id;
+            var sm_api_title = rows[0].sm_api_title;
 
-        stream.write("retrieved sm_api_title from db\n");
+            stream.write("retrieved sm_api_title from db\n");
 
-        //console.log(wordsSorted);
+            //console.log(wordsSorted);
 
-        stream.write("querying UNSPLASH image web service\n");
+            stream.write("querying UNSPLASH image web service\n");
 
-        // get image
-        let img = await getImage(sm_api_title);
-        
-        stream.write("about to update storycontent table with img value\n");
+            // get image
+            let img = await getImage(sm_api_title);
+            
+            stream.write("about to update storycontent table with img value\n");
 
-        // update storycontent
-        let updateStoryContentWithImgStatement = 'update storyContent set img = ? where id = ?';
+            // update storycontent
+            let updateStoryContentWithImgStatement = 'update storyContent set img = ? where id = ?';
 
-        await mysql.conn.query( updateStoryContentWithImgStatement, [img, id] );
+            await mysql.conn.query( updateStoryContentWithImgStatement, [img, id] );
 
-        mysql.conn.commit();
+            mysql.conn.commit();
+        }
+        else {
+            stream.write("No available stories to process\n");
+            console.log("No available stories to process\n");
+        }
 
     } catch(exception)
     {
