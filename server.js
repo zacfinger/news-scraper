@@ -11,7 +11,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(CORS());
 
 app.get('/api/stories', function(req, res, next) {
-	mysql.pool.query('select * from spunStories order by pubDate desc', (err, rows, fields) => {
+	mysql.pool.query('select Story.id, sm_api_title, tagline, gpt_neo_content, img from storyContent join Story on Story.id = storyContent.id where status = 5 order by Story.id desc limit 20;', (err, rows, fields) => {
 		if (err) {
 			next(err);
 			return;
@@ -20,9 +20,9 @@ app.get('/api/stories', function(req, res, next) {
 	});
 });
 
-app.get('/api/story/:guid', function (req, res, next) { 
-	mysql.pool.query('select * from spunStories where guid=?',
-		[req.params.guid],
+app.get('/api/story/:id', function (req, res, next) { 
+	mysql.pool.query('select sm_api_title, gpt_neo_content, img from storyContent where id=?',
+		[req.params.id],
 		(err, rows) => {
 			if (err) {
 				next(err);
