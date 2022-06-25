@@ -28,7 +28,7 @@
     "forever": "^3.0.4",
     "jsdom": "^16.2.2",
     "mysql": "^2.18.1",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^2.6.7",
     "pos": "^0.4.2",
     "rss-parser": "^3.8.0",
     "thesaurize": "^1.0.11",
