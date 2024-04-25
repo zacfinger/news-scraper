@@ -1,8 +1,10 @@
 # news-scraper
 
-A set of tools for a fully automated luxury news blog.
+These components retrieve and transform data used by my [story generation Python script](https://github.com/zacfinger/gpt_story), which uses the GPT Neo LLM to generate the news stories. 
 
-(c) 2018-2020 ZacFinger.com
+A set of tools for a fully automated luxury news blog. 
+
+(c) 2018-2024 ZacFinger.com
 
 License: MIT
 
